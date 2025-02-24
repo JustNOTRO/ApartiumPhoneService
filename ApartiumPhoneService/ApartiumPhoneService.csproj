@@ -7,4 +7,9 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <PackageReference Include="SIPSorcery" Version="8.0.9" />
+      <PackageReference Include="SIPSorceryMedia.FFmpeg" Version="8.0.8" />
+    </ItemGroup>
+
 </Project>
