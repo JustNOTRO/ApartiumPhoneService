@@ -24,7 +24,14 @@ public class DtmfParser
 
     public char Parse(byte key)
     {
-        return _keys[key];
+        try
+        {
+            return _keys[key];
+        }
+        catch (Exception _)
+        {
+            throw new ApplicationException("Invalid key: " + key);
+        }
     }
 
     public byte Parse(char key)

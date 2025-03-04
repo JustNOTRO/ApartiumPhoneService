@@ -1,8 +1,11 @@
-﻿using ApartiumPhoneService;
-using SIPSorcery.SIP;
+﻿using System.Runtime.InteropServices;
+using ApartiumPhoneService;
 
-List<ApartiumPhoneServer.SipRegisterAccount> sipAccounts = [new("500", "123", "localhost", 120)];
-        
 Console.WriteLine("Starting ApartiumPhoneService.. Hold tight!");
-var server = new ApartiumPhoneServer(sipAccounts, new SIPTransport());
+var projectDirectory = Directory.GetParent(Environment.CurrentDirectory)?.Parent?.Parent?.FullName;
+var serverFilePath = projectDirectory + "/server.yml";
+var server = new ApartiumPhoneServer(serverFilePath);
 server.Start();
+
+
+

@@ -52,23 +52,25 @@ public class SipRequestHandler(
     {
         var logger = ApartiumPhoneServer.GetLogger();
         logger.LogInformation($"Incoming call request: {sipEndPoint}<-{remoteEndPoint} {sipRequest.URI}.");
-        
+
         var sipUserAgent = new SIPUserAgent(sipTransport, null);
         sipUserAgent.OnCallHungup += server.OnHangup;
         sipUserAgent.ServerCallCancelled += (_, _) => logger.LogDebug("Incoming call cancelled by remote party.");
 
         sipUserAgent.OnDtmfTone += (key, duration) => server.OnDtmfTone(sipUserAgent, key, duration);
-        sipUserAgent.OnRtpEvent += (evt, hdr) => 
-            logger.LogDebug($"rtp event {evt.EventID}, duration {evt.Duration}, end of event {evt.EndOfEvent}, timestamp {hdr.Timestamp}, marker {hdr.MarkerBit}.");
-        
+        sipUserAgent.OnRtpEvent += (evt, hdr) =>
+            logger.LogDebug(
+                $"rtp event {evt.EventID}, duration {evt.Duration}, end of event {evt.EndOfEvent}, timestamp {hdr.Timestamp}, marker {hdr.MarkerBit}.");
+
         //ua.OnTransactionTraceMessage += (tx, msg) => Log.LogDebug($"uas tx {tx.TransactionId}: {msg}");
         sipUserAgent.ServerCallRingTimeout += serverUserAgent =>
         {
             var transactionState = serverUserAgent.ClientTransaction.TransactionState;
-            logger.LogWarning($"Incoming call timed out in {transactionState} state waiting for client ACK, terminating.");
+            logger.LogWarning(
+                $"Incoming call timed out in {transactionState} state waiting for client ACK, terminating.");
             sipUserAgent.Hangup();
         };
-        
+
         var serverUserAgent = sipUserAgent.AcceptCall(sipRequest);
         var rtpSession = server.CreateRtpSession(sipUserAgent, sipRequest.URI.User);
 
