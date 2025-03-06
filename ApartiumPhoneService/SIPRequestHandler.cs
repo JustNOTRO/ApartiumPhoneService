@@ -96,14 +96,16 @@ public class SIPRequestHandler(
 
         await sipUserAgent.Answer(serverUserAgent, rtpSession);
 
-        if (sipUserAgent.IsCallActive)
+        if (!sipUserAgent.IsCallActive)
         {
-            await rtpSession.Start();
-            if (!server.TryAddCall(sipUserAgent.Dialogue.CallId, 
-                    new SIPOngoingCall(sipUserAgent, serverUserAgent)))
-            {
-                logger.LogWarning("Could not add call to active calls");
-            }
+            return;
+        }
+        
+        await rtpSession.Start();
+        var call = new SIPOngoingCall(sipUserAgent, serverUserAgent);
+        if (!server.TryAddCall(sipUserAgent.Dialogue.CallId, call))
+        {
+            logger.LogWarning("Could not add call to active calls");
         }
     }
     
