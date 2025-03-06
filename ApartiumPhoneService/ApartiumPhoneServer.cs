@@ -53,7 +53,7 @@ public class ApartiumPhoneServer
             Console.WriteLine("IP Address cannot be empty.");
             return false;
         }
-        
+
         ip = ip.ToLower() switch
         {
             LocalHostIpv4Cmd => LocalHostAddress,
@@ -76,14 +76,14 @@ public class ApartiumPhoneServer
         _address = address;
         return true;
     }
-    
+
     public void Start()
     {
         Console.WriteLine("-----Lazy commands-----");
         Console.WriteLine("{0} - equivalent to {1} (IPV4 localhost)", LocalHostIpv4Cmd, LocalHostIpV4Address);
         Console.WriteLine("{0} - equivalent to {1} (IPV6 localhost)", LocalHostIpv6Cmd, LocalHostIpV6Address);
         Console.WriteLine();
-        
+
         Console.Write("Please enter IP Address: ");
         var ipAddress = Console.ReadLine();
         if (!ValidateIPAddress(ipAddress))
@@ -91,7 +91,17 @@ public class ApartiumPhoneServer
             return;
         }
 
-        _sipTransport.AddSIPChannel(new SIPUDPChannel(new IPEndPoint(_address, SipListenPort)));
+        try
+        {
+            _sipTransport.AddSIPChannel(new SIPUDPChannel(new IPEndPoint(_address, SipListenPort)));
+        }
+        catch (ApplicationException e)
+        {
+            Console.WriteLine();
+            Console.WriteLine(e.Message);
+            return;
+        }
+
         _sipTransport.EnableTraceLogs();
         StartRegistrations();
         _sipTransport.SIPTransportRequestReceived += OnRequest;
@@ -102,9 +112,9 @@ public class ApartiumPhoneServer
         Console.WriteLine();
         Console.WriteLine("Started ApartiumPhoneServer!");
         Console.WriteLine("Server is running on IP: {0} {1}", _address.ToString(), localhostType);
-        
+
         Console.WriteLine("Press any key to shutdown...");
-        
+
         // Ensuring it is not a test case
         if (Console.LargestWindowWidth != 0)
         {
@@ -112,7 +122,7 @@ public class ApartiumPhoneServer
             _sipTransport.Shutdown();
             _calls.Clear();
         }
-        
+
         Logger.LogInformation("Exiting...");
         Logger.LogInformation("Shutting down SIP transport...");
     }
@@ -123,7 +133,7 @@ public class ApartiumPhoneServer
         {
             return;
         }
-        
+
         var sipRequestHandler = new SIPRequestHandler(this, sipRequest, localSipEndPoint, remoteEndPoint);
         await sipRequestHandler.Handle();
     }
@@ -156,7 +166,7 @@ public class ApartiumPhoneServer
             regUserAgent.Start();
         }
     }
-    
+
     public void TryAddCall(string key, SIPUserAgent userAgent)
     {
         _calls.TryAdd(key, userAgent);

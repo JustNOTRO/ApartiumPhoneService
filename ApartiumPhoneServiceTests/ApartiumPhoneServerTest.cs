@@ -1,3 +1,4 @@
+using System.Net;
 using ApartiumPhoneService;
 using JetBrains.Annotations;
 using Moq;
@@ -27,11 +28,7 @@ public class ApartiumPhoneServerTest
         _apartiumPhoneServer = new ApartiumPhoneServer(ServerFilePath);
         _configDataProviderMock = Substitute.For<ConfigDataProvider>(ServerFilePath);
         _accountsProviderMock = Substitute.For<AccountsProvider>();
-    }
-
-    [Fact]
-    public void TestStart()
-    {
+        
         var sipRegisteredAccount = new SIPRegisteredAccount
         {
             Username = "555",
@@ -42,8 +39,14 @@ public class ApartiumPhoneServerTest
 
         _accountsProviderMock.Accounts.Returns([sipRegisteredAccount]);
         _configDataProviderMock.GetRegisteredAccounts().Returns([sipRegisteredAccount]);
-
+        
         Console.SetIn(new StringReader("lv4"));
+    }
+
+    [Fact]
+    public void TestStart()
+    {
+        
         var stringWriter = new StringWriter();
         Console.SetOut(stringWriter);
         _apartiumPhoneServer.Start();
@@ -71,17 +74,6 @@ public class ApartiumPhoneServerTest
     [Fact]
     public void TestStart_When_IPAddress_Is_Not_Provided()
     {
-        var sipRegisteredAccount = new SIPRegisteredAccount
-        {
-            Username = "555",
-            Password = "123",
-            Domain = "localhost",
-            Expiry = 120
-        };
-
-        _accountsProviderMock.Accounts.Returns([sipRegisteredAccount]);
-        _configDataProviderMock.GetRegisteredAccounts().Returns([sipRegisteredAccount]);
-
         var input = new StringReader("");
         Console.SetIn(input);
         var stringWriter = new StringWriter();
@@ -103,17 +95,6 @@ public class ApartiumPhoneServerTest
     [Fact]
     public void TestStart_When_IPAddress_Is_Invalid()
     {
-        var sipRegisteredAccount = new SIPRegisteredAccount
-        {
-            Username = "555",
-            Password = "123",
-            Domain = "localhost",
-            Expiry = 120
-        };
-
-        _accountsProviderMock.Accounts.Returns([sipRegisteredAccount]);
-        _configDataProviderMock.GetRegisteredAccounts().Returns([sipRegisteredAccount]);
-        
         Console.SetIn(new StringReader("abc"));
         var stringWriter = new StringWriter();
         Console.SetOut(stringWriter);
@@ -132,18 +113,6 @@ public class ApartiumPhoneServerTest
     [Fact]
     public void TestOnRequest_When_In_Dialog()
     {
-        // Arrange
-        var sipRegisteredAccount = new SIPRegisteredAccount
-        {
-            Username = "555",
-            Password = "123",
-            Domain = "localhost",
-            Expiry = 120
-        };
-
-        _accountsProviderMock.Accounts.Returns([sipRegisteredAccount]);
-        _configDataProviderMock.GetRegisteredAccounts().Returns([sipRegisteredAccount]);
-
         var mockSipRequest = new Mock<ISIPRequestWrapper>();
         var sipHeader = new SIPHeader
         {
@@ -167,24 +136,30 @@ public class ApartiumPhoneServerTest
         Assert.Equal("fromTag", fromTag);
         Assert.Equal("toTag", toTag);
     }
-    
+
     [Fact]
-    public void TestOnHangup()
+    public void TestStart_When_EndPoint_Is_Taken()
     {
-        var sipRegisteredAccount = new SIPRegisteredAccount()
+        var sipTransport = new SIPTransport();
+        try
         {
-            Username = "555",
-            Password = "123",
-            Domain = "localhost",
-            Expiry = 120
-        };
+            sipTransport.AddSIPChannel(new SIPUDPChannel(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5060)));
+        }
+        catch (Exception _)
+        {
+            // ignored
+        }
+
+        var stringWriter = new StringWriter();
+        Console.SetOut(stringWriter);
+        _apartiumPhoneServer.Start();
         
-        _configDataProviderMock.GetRegisteredAccounts()
-            .Returns([sipRegisteredAccount]);
-        
-        _accountsProviderMock.Accounts.Returns([sipRegisteredAccount]);
-        
-        
+        var lines = stringWriter.ToString().Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal("-----Lazy commands-----", lines[0]);
+        Assert.Equal("lv4 - equivalent to 127.0.0.1 (IPV4 localhost)", lines[1]);
+        Assert.Equal("lv6 - equivalent to ::1 (IPV6 localhost)", lines[2]);
+        Assert.Equal("Please enter IP Address: ", lines[3]);
+        Assert.Equal("Unable to bind socket using end point 127.0.0.1:5060.", lines[4]);
     }
 }
 
