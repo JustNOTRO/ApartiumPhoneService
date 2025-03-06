@@ -3,48 +3,80 @@ using System.Net;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Extensions.Logging;
-using SIPSorcery.Media;
 using SIPSorcery.SIP;
 using SIPSorcery.SIP.App;
-using SIPSorceryMedia.Abstractions;
 
 namespace ApartiumPhoneService;
 
+/// <summary>
+///  <c>ApartiumPhoneServer</c> is the class that manages the SIP Server
+/// </summary>
 public class ApartiumPhoneServer
 {
     private const int SipListenPort = 5060;
-    private const string LocalHostAddress = "127.0.0.1";
     private const string LocalHostIpV4Address = "127.0.0.1";
     private const string LocalHostIpV6Address = "::1";
     private const string LocalHostIpv4Cmd = "lv4";
     private const string LocalHostIpv6Cmd = "lv6";
 
-    private readonly ConcurrentDictionary<string, SIPUserAgent> _calls = new();
+    /// <summary>
+    /// a dictionary that keeps track of an active calls on the server
+    /// </summary>
+    private readonly ConcurrentDictionary<string, SIPOngoingCall> _calls = new();
 
+    /// <summary>
+    /// Provides our registered account and other related data
+    /// </summary>
     private readonly ConfigDataProvider _configDataProvider;
 
+    /// <summary>
+    /// The server sip transport that manages channels
+    /// </summary>
     private readonly SIPTransport _sipTransport;
 
+    /// <summary>
+    /// Our logger for logging errors and warnings
+    /// </summary>
     private static readonly Microsoft.Extensions.Logging.ILogger Logger = InitLogger();
 
+    /// <summary>
+    /// The server ip address
+    /// </summary>
     private IPAddress _address;
 
+    /// <summary>
+    /// Constructs a new SIP server
+    /// </summary>
+    /// <param name="serverFilePath">The file path of the server.yml</param>
     public ApartiumPhoneServer(string serverFilePath)
     {
         _sipTransport = new SIPTransport();
         _configDataProvider = new ConfigDataProvider(serverFilePath);
     }
 
+    /// <summary>
+    /// Gets the server Logger
+    /// </summary>
+    /// <returns>the server Logger</returns>
     public static Microsoft.Extensions.Logging.ILogger GetLogger()
     {
         return Logger;
     }
 
+    /// <summary>
+    /// Gets the sip transport of our server
+    /// </summary>
+    /// <returns></returns>
     public SIPTransport GetSipTransport()
     {
         return _sipTransport;
     }
 
+    /// <summary>
+    /// Checks for ip address validation
+    /// </summary>
+    /// <param name="ip">The ip address that needs to be checked</param>
+    /// <returns>true if valid, false otherwise</returns>
     private bool ValidateIPAddress(string? ip)
     {
         if (string.IsNullOrEmpty(ip))
@@ -56,11 +88,11 @@ public class ApartiumPhoneServer
 
         ip = ip.ToLower() switch
         {
-            LocalHostIpv4Cmd => LocalHostAddress,
+            LocalHostIpv4Cmd => LocalHostIpV4Address,
             LocalHostIpv6Cmd => LocalHostIpV6Address,
             _ => ip
         };
-
+        
         IPAddress address = null;
         try
         {
@@ -77,6 +109,9 @@ public class ApartiumPhoneServer
         return true;
     }
 
+    /// <summary>
+    /// Starts the server
+    /// </summary>
     public void Start()
     {
         Console.WriteLine("-----Lazy commands-----");
@@ -127,6 +162,12 @@ public class ApartiumPhoneServer
         Logger.LogInformation("Shutting down SIP transport...");
     }
 
+    /// <summary>
+    /// Handles a request from clients
+    /// </summary>
+    /// <param name="localSipEndPoint">the local end point</param>
+    /// <param name="remoteEndPoint">the remote end point</param>
+    /// <param name="sipRequest">the sip request</param>
     private async Task OnRequest(SIPEndPoint localSipEndPoint, SIPEndPoint remoteEndPoint, SIPRequest sipRequest)
     {
         if (sipRequest.Header.From.FromTag != null && sipRequest.Header.To.ToTag != null)
@@ -137,9 +178,9 @@ public class ApartiumPhoneServer
         var sipRequestHandler = new SIPRequestHandler(this, sipRequest, localSipEndPoint, remoteEndPoint);
         await sipRequestHandler.Handle();
     }
-
+    
     /// <summary>
-    /// Starts a registration agent for each of the supplied SIP accounts.
+    /// Starts accounts registrations
     /// </summary>
     private void StartRegistrations()
     {
@@ -167,17 +208,32 @@ public class ApartiumPhoneServer
         }
     }
 
-    public void TryAddCall(string key, SIPUserAgent userAgent)
+    /// <summary>
+    /// Tries to add the call to the active calls
+    /// </summary>
+    /// <param name="callId">the call id</param>
+    /// <param name="call">the ongoing call</param>
+    /// <returns>True if succeeded, false otherwise</returns>
+    public bool TryAddCall(string callId, SIPOngoingCall call)
     {
-        _calls.TryAdd(key, userAgent);
+        return _calls.TryAdd(callId, call);
+    }
+    
+    /// <summary>
+    /// Tries to remove the active call
+    /// </summary>
+    /// <param name="callId"></param>
+    /// <returns>the removed call, otherwise null</returns>
+    public SIPOngoingCall? TryRemoveCall(string callId)
+    {
+        _calls.TryRemove(callId, out var call);
+        return call;
     }
 
-    public SIPUserAgent? TryRemoveCall(string callId)
-    {
-        _calls.TryRemove(callId, out var userAgent);
-        return userAgent;
-    }
-
+    /// <summary>
+    /// Initializes the server logger
+    /// </summary>
+    /// <returns>the server logger</returns>
     private static Microsoft.Extensions.Logging.ILogger InitLogger()
     {
         var serilogLogger = new LoggerConfiguration()

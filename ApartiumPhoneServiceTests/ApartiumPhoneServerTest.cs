@@ -4,7 +4,6 @@ using JetBrains.Annotations;
 using Moq;
 using NSubstitute;
 using SIPSorcery.SIP;
-using Xunit.Abstractions;
 
 namespace ApartiumPhoneServiceTests;
 
@@ -13,18 +12,15 @@ public class ApartiumPhoneServerTest
 {
     private const string ServerFilePath =
         "/home/notro/RiderProjects/ApartiumPhoneService/ApartiumPhoneService/server.yml";
-
-    private readonly ITestOutputHelper _testOutputHelper;
-
+    
     private readonly ApartiumPhoneServer _apartiumPhoneServer;
 
     private readonly ConfigDataProvider _configDataProviderMock;
 
     private readonly AccountsProvider _accountsProviderMock;
 
-    public ApartiumPhoneServerTest(ITestOutputHelper testOutputHelper)
+    public ApartiumPhoneServerTest()
     {
-        _testOutputHelper = testOutputHelper;
         _apartiumPhoneServer = new ApartiumPhoneServer(ServerFilePath);
         _configDataProviderMock = Substitute.For<ConfigDataProvider>(ServerFilePath);
         _accountsProviderMock = Substitute.For<AccountsProvider>();
@@ -46,7 +42,6 @@ public class ApartiumPhoneServerTest
     [Fact]
     public void TestStart()
     {
-        
         var stringWriter = new StringWriter();
         Console.SetOut(stringWriter);
         _apartiumPhoneServer.Start();

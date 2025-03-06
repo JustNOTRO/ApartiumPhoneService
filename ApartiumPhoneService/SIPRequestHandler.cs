@@ -6,12 +6,22 @@ using SIPSorceryMedia.Abstractions;
 
 namespace ApartiumPhoneService;
 
+/// <summary>
+/// <c>SIPRequestHandler</c> Handles a SIP request
+/// </summary>
+/// <param name="server">the SIP server</param>
+/// <param name="sipRequest">the SIP request</param>
+/// <param name="sipEndPoint">the SIP endpoint</param>
+/// <param name="remoteEndPoint">the remote end point</param>
 public class SIPRequestHandler(
     ApartiumPhoneServer server,
     SIPRequest sipRequest,
     SIPEndPoint sipEndPoint,
     SIPEndPoint remoteEndPoint)
 {
+    /// <summary>
+    /// Handles requests by method type
+    /// </summary>
     public async Task Handle()
     {
         var sipTransport = server.GetSipTransport();
@@ -20,7 +30,7 @@ public class SIPRequestHandler(
         {
             case SIPMethodsEnum.INVITE:
             {
-                await HandleClientInvitation(sipTransport);
+                await HandleIncomingCall(sipTransport);
                 break;
             }
 
@@ -50,7 +60,11 @@ public class SIPRequestHandler(
         }
     }
 
-    private async Task HandleClientInvitation(SIPTransport sipTransport)
+    /// <summary>
+    /// Handles incoming call
+    /// </summary>
+    /// <param name="sipTransport">the server SIP transport</param>
+    private async Task HandleIncomingCall(SIPTransport sipTransport)
     {
         var logger = ApartiumPhoneServer.GetLogger();
         logger.LogInformation($"Incoming call request: {sipEndPoint}<-{remoteEndPoint} {sipRequest.URI}.");
@@ -85,14 +99,18 @@ public class SIPRequestHandler(
         if (sipUserAgent.IsCallActive)
         {
             await rtpSession.Start();
-            server.TryAddCall(sipUserAgent.Dialogue.CallId, sipUserAgent);
+            if (!server.TryAddCall(sipUserAgent.Dialogue.CallId, 
+                    new SIPOngoingCall(sipUserAgent, serverUserAgent)))
+            {
+                logger.LogWarning("Could not add call to active calls");
+            }
         }
     }
     
     /// <summary>
-    /// Remove call from the active calls list.
+    /// Handles the call when client hangup
     /// </summary>
-    /// <param name="dialogue">The dialogue that was hangup.</param>
+    /// <param name="dialogue">The call dialogue</param>
     private void OnHangup(SIPDialogue? dialogue)
     {
         if (dialogue == null)
@@ -101,23 +119,23 @@ public class SIPRequestHandler(
         }
 
         var callId = dialogue.CallId;
-        var sipUserAgent = server.TryRemoveCall(callId);
+        var call = server.TryRemoveCall(callId);
 
         // This app only uses each SIP user agent once so here the agent is 
         // explicitly closed to prevent is responding to any new SIP requests.
-        sipUserAgent?.Close();
+        call?.Hangup();
     }
-
+    
     /// <summary>
-    /// Event handler for receiving a DTMF tone.
+    /// Handles DTMF tones received from client
     /// </summary>
-    /// <param name="ua">The user agent that received the DTMF tone.</param>
-    /// <param name="key">The DTMF tone.</param>
-    /// <param name="duration">The duration in milliseconds of the tone.</param>
-    private void OnDtmfTone(SIPUserAgent ua, byte key, int duration)
+    /// <param name="userAgent">The user agent of the client</param>
+    /// <param name="key">The key that was pressed</param>
+    /// <param name="duration">The duration of the press</param>
+    private void OnDtmfTone(SIPUserAgent userAgent, byte key, int duration)
     {
         var logger = ApartiumPhoneServer.GetLogger();
-        var callId = ua.Dialogue.CallId;
+        var callId = userAgent.Dialogue.CallId;
         logger.LogInformation($"Call {callId} received DTMF tone {key}, duration {duration}ms.");
 
         var keyPressed = key switch
@@ -129,14 +147,13 @@ public class SIPRequestHandler(
 
         Console.WriteLine("User pressed {0}!", keyPressed);
     }
-
+    
     /// <summary>
-    /// Example of how to create a basic RTP session object and hook up the event handlers.
+    /// Creates RTP session
     /// </summary>
-    /// <param name="userAgent">The user agent the RTP session is being created for.</param>
-    /// <param name="destination">THe destination specified on an incoming call. Can be used to
-    /// set the audio source.</param>
-    /// <returns>A new RTP session object.</returns>
+    /// <param name="userAgent">The client user agent</param>
+    /// <param name="destination">The destination of the audio sources</param>
+    /// <returns>A new VoIP media session</returns>
     private VoIPMediaSession CreateRtpSession(SIPUserAgent userAgent, string destination)
     {
         var logger = ApartiumPhoneServer.GetLogger();

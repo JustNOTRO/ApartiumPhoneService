@@ -1,5 +1,4 @@
-﻿using System.Runtime.InteropServices;
-using ApartiumPhoneService;
+﻿using ApartiumPhoneService;
 
 Console.WriteLine("Starting ApartiumPhoneService.. Hold tight!");
 var projectDirectory = Directory.GetParent(Environment.CurrentDirectory)?.Parent?.Parent?.FullName;

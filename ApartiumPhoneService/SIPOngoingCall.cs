@@ -6,6 +6,7 @@ public class SIPOngoingCall(SIPUserAgent userAgent, SIPServerUserAgent serverUse
 {
     public void Hangup()
     {
+        userAgent.Hangup();
         serverUserAgent.Hangup(true);
     }
 }
