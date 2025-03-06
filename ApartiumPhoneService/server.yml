@@ -1,0 +1,6 @@
+accounts:
+  - username: "555"
+    password: "123"
+    domain: "localhost"
+    expiry: 120
+
