@@ -3,10 +3,8 @@ using System.Net;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Extensions.Logging;
-using SIPSorcery.Media;
 using SIPSorcery.SIP;
 using SIPSorcery.SIP.App;
-using SIPSorceryMedia.Abstractions;
 
 namespace ApartiumPhoneService;
 
@@ -156,12 +154,16 @@ public class ApartiumPhoneServer
         if (Console.LargestWindowWidth != 0)
         {
             Console.ReadKey(true);
-            _sipTransport.Shutdown();
-            _calls.Clear();
+            
+            foreach (var call in _calls.Values)
+            {
+                call.Hangup();
+            }
         }
 
         Logger.LogInformation("Exiting...");
         Logger.LogInformation("Shutting down SIP transport...");
+        _sipTransport.Shutdown();
     }
 
     /// <summary>

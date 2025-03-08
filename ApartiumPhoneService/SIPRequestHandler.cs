@@ -1,11 +1,16 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using SDL2;
 using SIPSorcery.Media;
 using SIPSorcery.SIP;
 using SIPSorcery.SIP.App;
 using SIPSorceryMedia.Abstractions;
+using SIPSorceryMedia.FFmpeg;
 
 namespace ApartiumPhoneService;
+
+public delegate void AudioCallbackDelegate(IntPtr userdata, IntPtr stream, int len);
 
 /// <summary>
 /// <c>SIPRequestHandler</c> Handles a SIP request
@@ -14,18 +19,20 @@ namespace ApartiumPhoneService;
 /// <param name="sipRequest">the SIP request</param>
 /// <param name="sipEndPoint">the SIP endpoint</param>
 /// <param name="remoteEndPoint">the remote end point</param>
-public class SIPRequestHandler {
-
+public class SIPRequestHandler
+{
     private readonly ApartiumPhoneServer _server;
-    
+
     private readonly SIPRequest _sipRequest;
-    
+
     private readonly SIPEndPoint _sipEndPoint;
-    
+
     private readonly SIPEndPoint _remoteEndPoint;
-    
+
     private readonly ConcurrentDictionary<char, VoIpSound> _keySounds = new();
-    
+
+    private readonly ConcurrentBag<char> _keysPressed = [];
+
     public SIPRequestHandler(ApartiumPhoneServer server, SIPRequest sipRequest, SIPEndPoint sipEndPoint,
         SIPEndPoint remoteEndPoint)
     {
@@ -33,12 +40,10 @@ public class SIPRequestHandler {
         _sipRequest = sipRequest;
         _sipEndPoint = sipEndPoint;
         _remoteEndPoint = remoteEndPoint;
-
+        
         AddKeySounds();
     }
-    
-    private readonly List<char> _keysPressed = [];
-    
+
     /// <summary>
     /// Handles requests by method type
     /// </summary>
@@ -93,9 +98,12 @@ public class SIPRequestHandler {
         sipUserAgent.OnCallHungup += OnHangup;
         sipUserAgent.ServerCallCancelled += (_, _) => logger.LogDebug("Incoming call cancelled by remote party.");
 
-        var mediaSession = new VoIPMediaSession();
-        
-        sipUserAgent.OnDtmfTone += (key, duration) => OnDtmfTone(mediaSession, sipUserAgent, key, duration);
+        var audioSource = new AudioExtrasSource();
+        var voIpMediaSession = new VoIPMediaSession(new MediaEndPoints { AudioSource = audioSource });
+        voIpMediaSession.AcceptRtpFromAny = true;
+
+
+        sipUserAgent.OnDtmfTone += (key, duration) => OnDtmfTone(voIpMediaSession, sipUserAgent, key, duration);
         sipUserAgent.OnRtpEvent += (evt, hdr) =>
             logger.LogDebug(
                 $"rtp event {evt.EventID}, duration {evt.Duration}, end of event {evt.EndOfEvent}, timestamp {hdr.Timestamp}, marker {hdr.MarkerBit}.");
@@ -110,23 +118,27 @@ public class SIPRequestHandler {
         };
 
         var serverUserAgent = sipUserAgent.AcceptCall(_sipRequest);
-        
-        await sipUserAgent.Answer(serverUserAgent, mediaSession);
-        
+
+        await sipUserAgent.Answer(serverUserAgent, voIpMediaSession);
+
         if (!sipUserAgent.IsCallActive)
         {
+            Console.WriteLine("This call is inactive");
             return;
         }
-        
+
+        Console.WriteLine("This call is active");
+
         var call = new SIPOngoingCall(sipUserAgent, serverUserAgent);
         if (!_server.TryAddCall(sipUserAgent.Dialogue.CallId, call))
         {
             logger.LogWarning("Could not add call to active calls");
         }
 
-        await PlaySound(mediaSession, sipUserAgent, VoIpSound.WelcomeSound);
+        var voIpAudioPlayer = new VoIpAudioPlayer();
+        voIpAudioPlayer.Play();
     }
-    
+
     /// <summary>
     /// Handles the call when client hangup
     /// </summary>
@@ -145,15 +157,14 @@ public class SIPRequestHandler {
         // explicitly closed to prevent is responding to any new SIP requests.
         call?.Hangup();
     }
-    
+
     /// <summary>
     /// Handles DTMF tones received from client
     /// </summary>
-    /// <param name="session">the VoIP media session</param>
     /// <param name="userAgent">The user agent of the client</param>
     /// <param name="key">The key that was pressed</param>
     /// <param name="duration">The duration of the press</param>
-    private async Task OnDtmfTone(VoIPMediaSession session, SIPUserAgent userAgent, byte key, int duration)
+    private void OnDtmfTone(VoIPMediaSession session, SIPUserAgent userAgent, byte key, int duration)
     {
         var logger = ApartiumPhoneServer.GetLogger();
         var callId = userAgent.Dialogue.CallId;
@@ -167,32 +178,45 @@ public class SIPRequestHandler {
         };
 
         Console.WriteLine("User pressed {0}!", keyPressed);
-        
+
         if (keyPressed != '#')
         {
             _keysPressed.Add(keyPressed);
+            Console.WriteLine("Hello world");
             return;
         }
-        
+
+        Console.WriteLine("Im here bro");
+
+        PlaySelectedNumbers(session, userAgent).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Plays the selected numbers the client chose
+    /// </summary>
+    /// <param name="userAgent">the client user agent</param>
+    private async Task PlaySelectedNumbers(VoIPMediaSession session, SIPUserAgent userAgent)
+    {
         foreach (var sound in _keysPressed.Select(GetVoIpSound))
         {
             await PlaySound(session, userAgent, sound);
+            Console.WriteLine("Played this sound dude");
         }
-            
+
+        Console.WriteLine("Cleared the keys pressed");
         _keysPressed.Clear();
     }
-    
+
     /// <summary>
     /// Plays a sound
     /// </summary>
-    /// <param name="session">The VoIP media session</param>
     /// <param name="userAgent">the client user agent</param>
-    /// <param name="destination">the destination of the sound</param>
-    /// <param name="duration">the sound duration (in seconds)</param>
+    /// <param name="sound">the sound to play</param>
     private async Task PlaySound(VoIPMediaSession session, SIPUserAgent userAgent, VoIpSound sound)
     {
+        Console.WriteLine("Started the session");
+
         var logger = ApartiumPhoneServer.GetLogger();
-        session.AcceptRtpFromAny = true;
 
         session.OnTimeout += _ =>
         {
@@ -200,18 +224,26 @@ public class SIPRequestHandler {
                 ? $"RTP timeout on call with {userAgent.Dialogue.RemoteTarget}, hanging up."
                 : $"RTP timeout on incomplete call, closing RTP session.");
 
-            userAgent.Hangup();
+            if (userAgent.Dialogue == null)
+            {
+                return;
+            }
+
+            var call = _server.TryRemoveCall(userAgent.Dialogue.CallId);
+            call?.Hangup();
         };
 
         await session.AudioExtrasSource.StartAudio();
-        
-        var audioStream = new FileStream(sound.Destination, FileMode.Open);
+        logger.LogInformation("Sending audio file.");
+
+        await using var audioStream = new FileStream(sound.GetDestination(), FileMode.Open, FileAccess.Read);
         await session.AudioExtrasSource.SendAudioFromStream(audioStream, AudioSamplingRatesEnum.Rate8KHz);
-        await Task.Delay(sound.Duration * 1000);
-        
-        await session.Start();
+        session.AudioExtrasSource.SetSource(AudioSourcesEnum.None);
     }
 
+    /// <summary>
+    /// Adds the key sounds
+    /// </summary>
     private void AddKeySounds()
     {
         _keySounds.TryAdd('0', VoIpSound.ZeroSound);
@@ -225,10 +257,9 @@ public class SIPRequestHandler {
         _keySounds.TryAdd('8', VoIpSound.EightSound);
         _keySounds.TryAdd('9', VoIpSound.NineSound);
     }
-    
+
     private VoIpSound GetVoIpSound(char keyPressed)
     {
         return _keySounds[keyPressed];
     }
-    
 }
