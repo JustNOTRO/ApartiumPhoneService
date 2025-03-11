@@ -1,3 +1,4 @@
+using SIPSorcery.SIP.App;
 using SIPSorceryMedia.SDL2;
 using static SDL2.SDL;
 
@@ -5,24 +6,25 @@ namespace ApartiumPhoneService;
 
 public class VoIpAudioPlayer
 {
-    private const string WavFilePath = "Sounds/welcome-sound.wav";
-
     //const String WAV_FILE_PATH = "./../../../../../media/file_example_WAV_1MG.wav";
-    private static IntPtr _audioBuffer; /* Pointer to wave data - uint8 */
-    private static uint _audioLen; /* Length of wave data * - uint32 */
-    private static int _audioPos; /* Current play position */
+    private IntPtr _audioBuffer; /* Pointer to wave data - uint8 */
+    private uint _audioLen; /* Length of wave data * - uint32 */
+    private int _audioPos; /* Current play position */
 
-    private static SDL_AudioSpec _audioSpec;
-    private static uint _deviceId; // SDL Device Id
+    private SDL_AudioSpec _audioSpec;
+    private uint _deviceId; // SDL Device Id
 
-    private static bool _endAudioFile;
-
+    private bool _endAudioFile;
+    
+    public void setEndAudioFile(bool endAudioFile)
+    {
+        _endAudioFile = endAudioFile;
+    }
+    
     public VoIpAudioPlayer()
     {
-        Console.Clear();
-        Console.WriteLine("\nTry to init SDL2 libraries - they must be stored in the same folder than this application");
-
-        // Init SDL Library - Library files must be in the same folder as the application
+        Console.WriteLine("Initialized VoIpAudioPlayer");
+        
         SDL2Helper.InitSDL();
 
         Console.WriteLine("\nInit done");
@@ -37,39 +39,15 @@ public class VoIpAudioPlayer
             SDL2Helper.QuitSDL();
             Environment.Exit(1);
         }
+    }
 
-        int deviceIndex; // To store the index of the audio playback device selected
+    public virtual void Play(VoIpSound sound)
+    {
+        _endAudioFile = false;
+        var destination = sound.GetDestination();
         
-        // Allow end user to select Audio playback device
-        while (true)
-        {
-            Console.WriteLine("\nSelect audio playback device:");
-            int index = 1;
-            foreach (String device in sdlDevices)
-            {
-                Console.Write($"\n [{index}] - {device} ");
-                index++;
-            }
-
-            Console.WriteLine("\n");
-            Console.Out.Flush();
-
-            var keyConsole = Console.ReadKey();
-            if (!int.TryParse("" + keyConsole.KeyChar, out var keyValue) || keyValue >= index || keyValue < 0)
-            {
-                continue;
-            }
-            
-            deviceIndex = keyValue - 1;
-            break;
-        }
-
-        // Get name of the device
-        var deviceName = sdlDevices[deviceIndex]; // To store the name of the audio playback device selected
-        Console.WriteLine($"\nDevice selected: {deviceName}");
-
         // Open WAV file:
-        if (SDL_LoadWAV(WavFilePath, out _audioSpec, out _audioBuffer, out _audioLen) == null)
+        if (SDL_LoadWAV(destination, out _audioSpec, out _audioBuffer, out _audioLen) < 0)
         {
             Console.WriteLine("\nCannot open audio file - its format is not supported");
             SDL2Helper.QuitSDL();
@@ -88,7 +66,7 @@ public class VoIpAudioPlayer
         _audioSpec.callback = FillWavData;
 
         // Open audio file and start to play Wav file
-        _deviceId = OpenAudioDevice(deviceName);
+        _deviceId = OpenAudioDevice();
 
         if (_deviceId == 0)
         {
@@ -96,49 +74,42 @@ public class VoIpAudioPlayer
             SDL2Helper.QuitSDL();
             Environment.Exit(1);
         }
-    }
-
-    public void Play()
-    {
-        Console.WriteLine($"\nPlaying file: {WavFilePath}");
+        
+        Console.WriteLine($"\nPlaying file: {destination}");
 
         SDL_FlushEvents(SDL_EventType.SDL_AUDIODEVICEADDED, SDL_EventType.SDL_AUDIODEVICEREMOVED);
         while (!_endAudioFile)
         {
-            while (SDL_PollEvent(out var sdlEvent1) > 0)
+            var pollEvent = SDL_PollEvent(out var sdlEvent);
+            if (pollEvent > 0 && sdlEvent.type == SDL_EventType.SDL_QUIT)
             {
-                if (sdlEvent1.type == SDL_EventType.SDL_QUIT)
-                {
-                    _endAudioFile = true;
-                }
+                break;
             }
-
+            
             SDL_Delay(100);
         }
-
+        
         // No more need callback
         _audioSpec.callback = null;
 
         // Free WAV file
         SDL_FreeWAV(_audioBuffer);
 
-        // Close audio file
-        CloseAudioDevice(_deviceId);
-
-        // Quit SDL Library
-        SDL2Helper.QuitSDL();
+        Console.WriteLine("Finished playing {0}", destination);
+        
+        CloseAudioDevice();
     }
 
-    static void CloseAudioDevice(uint deviceId)
+    public void CloseAudioDevice()
     {
-        if (deviceId != 0)
-            SDL_CloseAudioDevice(deviceId);
+        if (_deviceId != 0)
+            SDL_CloseAudioDevice(_deviceId);
     }
 
-    static uint OpenAudioDevice(String deviceName)
+    private uint OpenAudioDevice()
     {
         /* Initialize fillerup() variables */
-        _deviceId = SDL_OpenAudioDevice(deviceName, SDL_FALSE, ref _audioSpec, out _,
+        _deviceId = SDL_OpenAudioDevice(null, SDL_FALSE, ref _audioSpec, out _,
             0);
         if (_deviceId != 0)
         {
@@ -149,7 +120,7 @@ public class VoIpAudioPlayer
         return _deviceId;
     }
 
-    static void FillWavData(IntPtr unused, IntPtr stream, int len)
+    private void FillWavData(IntPtr unused, IntPtr stream, int len)
     {
         if (_endAudioFile)
             return;

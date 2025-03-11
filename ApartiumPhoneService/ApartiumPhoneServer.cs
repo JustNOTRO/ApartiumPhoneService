@@ -37,7 +37,7 @@ public class ApartiumPhoneServer
     /// <summary>
     /// Our logger for logging errors and warnings
     /// </summary>
-    private static readonly Microsoft.Extensions.Logging.ILogger Logger = InitLogger();
+    private static readonly Microsoft.Extensions.Logging.ILogger Logger = InitLogger<ApartiumPhoneServer>();
 
     /// <summary>
     /// The server ip address
@@ -52,15 +52,6 @@ public class ApartiumPhoneServer
     {
         _sipTransport = new SIPTransport();
         _configDataProvider = new ConfigDataProvider(serverFilePath);
-    }
-
-    /// <summary>
-    /// Gets the server Logger
-    /// </summary>
-    /// <returns>the server Logger</returns>
-    public static Microsoft.Extensions.Logging.ILogger GetLogger()
-    {
-        return Logger;
     }
 
     /// <summary>
@@ -137,7 +128,7 @@ public class ApartiumPhoneServer
             return;
         }
 
-        _sipTransport.EnableTraceLogs();
+        //_sipTransport.EnableTraceLogs();
         StartRegistrations();
         _sipTransport.SIPTransportRequestReceived += OnRequest;
 
@@ -179,7 +170,7 @@ public class ApartiumPhoneServer
             return;
         }
 
-        var sipRequestHandler = new SIPRequestHandler(this, sipRequest, localSipEndPoint, remoteEndPoint);
+        var sipRequestHandler = new SIPRequestHandler(this, sipRequest, localSipEndPoint, remoteEndPoint, InitLogger<SIPRequestHandler>());
         await sipRequestHandler.Handle();
     }
     
@@ -218,7 +209,7 @@ public class ApartiumPhoneServer
     /// <param name="callId">the call id</param>
     /// <param name="call">the ongoing call</param>
     /// <returns>True if succeeded, false otherwise</returns>
-    public bool TryAddCall(string callId, SIPOngoingCall call)
+    public virtual bool TryAddCall(string callId, SIPOngoingCall call)
     {
         return _calls.TryAdd(callId, call);
     }
@@ -228,7 +219,7 @@ public class ApartiumPhoneServer
     /// </summary>
     /// <param name="callId"></param>
     /// <returns>the removed call, otherwise null</returns>
-    public SIPOngoingCall? TryRemoveCall(string callId)
+    public virtual SIPOngoingCall? TryRemoveCall(string callId)
     {
         _calls.TryRemove(callId, out var call);
         return call;
@@ -238,7 +229,7 @@ public class ApartiumPhoneServer
     /// Initializes the server logger
     /// </summary>
     /// <returns>the server logger</returns>
-    private static Microsoft.Extensions.Logging.ILogger InitLogger()
+    private static Microsoft.Extensions.Logging.ILogger<T> InitLogger<T>()
     {
         var serilogLogger = new LoggerConfiguration()
             .Enrich.FromLogContext()
@@ -248,6 +239,6 @@ public class ApartiumPhoneServer
 
         var factory = new SerilogLoggerFactory(serilogLogger);
         SIPSorcery.LogFactory.Set(factory);
-        return factory.CreateLogger<ApartiumPhoneServer>();
+        return factory.CreateLogger<T>();
     }
 }

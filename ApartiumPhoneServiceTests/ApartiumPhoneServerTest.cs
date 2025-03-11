@@ -11,7 +11,7 @@ namespace ApartiumPhoneServiceTests;
 public class ApartiumPhoneServerTest
 {
     private const string ServerFilePath =
-        "/home/notro/RiderProjects/ApartiumPhoneService/ApartiumPhoneService/server.yml";
+        "/home/notro/RiderProjects/ApartiumPhoneService/ApartiumPhoneService/Data/server.yml";
     
     private readonly ApartiumPhoneServer _apartiumPhoneServer;
 
@@ -61,7 +61,6 @@ public class ApartiumPhoneServerTest
 
         var currentTime = DateTime.Now.ToString("HH:mm:ss");
         var loggerFormat = $"[{currentTime} INF] ";
-        Assert.NotNull(ApartiumPhoneServer.GetLogger());
         Assert.Equal(loggerFormat + "Exiting...", lines[7]);
         Assert.Equal(loggerFormat + "Shutting down SIP transport...", lines[8]);
     }
@@ -169,7 +168,7 @@ public interface ISIPRequestWrapper
 
 public class SIPRequestWrapper(SIPRequest sipRequest) : ISIPRequestWrapper
 {
-    public SIPMethodsEnum Method
+    public virtual SIPMethodsEnum Method
     {
         get => sipRequest.Method;
         set => sipRequest.Method = value;

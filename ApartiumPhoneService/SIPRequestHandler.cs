@@ -1,16 +1,14 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using SDL2;
+using Serilog;
+using Serilog.Extensions.Logging;
 using SIPSorcery.Media;
 using SIPSorcery.SIP;
 using SIPSorcery.SIP.App;
 using SIPSorceryMedia.Abstractions;
-using SIPSorceryMedia.FFmpeg;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace ApartiumPhoneService;
-
-public delegate void AudioCallbackDelegate(IntPtr userdata, IntPtr stream, int len);
 
 /// <summary>
 /// <c>SIPRequestHandler</c> Handles a SIP request
@@ -33,13 +31,22 @@ public class SIPRequestHandler
 
     private readonly ConcurrentBag<char> _keysPressed = [];
 
+    private readonly VoIpAudioPlayer _voIpAudioPlayer;
+    
+    private ISIPUserAgentFactory _userAgentFactory;
+    
+    private readonly Microsoft.Extensions.Logging.ILogger _logger;
+    
     public SIPRequestHandler(ApartiumPhoneServer server, SIPRequest sipRequest, SIPEndPoint sipEndPoint,
-        SIPEndPoint remoteEndPoint)
+        SIPEndPoint remoteEndPoint, ILogger logger)
     {
         _server = server;
+        _logger = logger;
         _sipRequest = sipRequest;
         _sipEndPoint = sipEndPoint;
         _remoteEndPoint = remoteEndPoint;
+        _voIpAudioPlayer = new VoIpAudioPlayer();
+        _userAgentFactory = new SIPUserAgentFactory();
         
         AddKeySounds();
     }
@@ -91,52 +98,47 @@ public class SIPRequestHandler
     /// <param name="sipTransport">the server SIP transport</param>
     private async Task HandleIncomingCall(SIPTransport sipTransport)
     {
-        var logger = ApartiumPhoneServer.GetLogger();
-        logger.LogInformation($"Incoming call request: {_sipEndPoint}<-{_remoteEndPoint} {_sipRequest.URI}.");
+        _logger.LogInformation($"Incoming call request: {_sipEndPoint}<-{_remoteEndPoint} {_sipRequest.URI}.");
 
-        var sipUserAgent = new SIPUserAgent(sipTransport, null);
+        
+        var sipUserAgent = _userAgentFactory.Create(sipTransport, null);
         sipUserAgent.OnCallHungup += OnHangup;
-        sipUserAgent.ServerCallCancelled += (_, _) => logger.LogDebug("Incoming call cancelled by remote party.");
+        sipUserAgent.ServerCallCancelled += (_, _) => _logger.LogDebug("Incoming call cancelled by remote party.");
 
         var audioSource = new AudioExtrasSource();
         var voIpMediaSession = new VoIPMediaSession(new MediaEndPoints { AudioSource = audioSource });
-        voIpMediaSession.AcceptRtpFromAny = true;
 
-
-        sipUserAgent.OnDtmfTone += (key, duration) => OnDtmfTone(voIpMediaSession, sipUserAgent, key, duration);
+        sipUserAgent.OnDtmfTone += (key, duration) => OnDtmfTone(sipUserAgent, key, duration);
         sipUserAgent.OnRtpEvent += (evt, hdr) =>
-            logger.LogDebug(
+            _logger.LogDebug(
                 $"rtp event {evt.EventID}, duration {evt.Duration}, end of event {evt.EndOfEvent}, timestamp {hdr.Timestamp}, marker {hdr.MarkerBit}.");
 
         //ua.OnTransactionTraceMessage += (tx, msg) => Log.LogDebug($"uas tx {tx.TransactionId}: {msg}");
         sipUserAgent.ServerCallRingTimeout += serverUserAgent =>
         {
             var transactionState = serverUserAgent.ClientTransaction.TransactionState;
-            logger.LogWarning(
+            _logger.LogWarning(
                 $"Incoming call timed out in {transactionState} state waiting for client ACK, terminating.");
             sipUserAgent.Hangup();
         };
-
+        
         var serverUserAgent = sipUserAgent.AcceptCall(_sipRequest);
 
         await sipUserAgent.Answer(serverUserAgent, voIpMediaSession);
 
         if (!sipUserAgent.IsCallActive)
         {
-            Console.WriteLine("This call is inactive");
+            _logger.LogWarning("Call is not active");
             return;
         }
-
-        Console.WriteLine("This call is active");
-
-        var call = new SIPOngoingCall(sipUserAgent, serverUserAgent);
+        
+        var call = new SIPOngoingCall(sipUserAgent, serverUserAgent, _voIpAudioPlayer);
         if (!_server.TryAddCall(sipUserAgent.Dialogue.CallId, call))
         {
-            logger.LogWarning("Could not add call to active calls");
+            _logger.LogWarning("Could not add call to active calls");
         }
 
-        var voIpAudioPlayer = new VoIpAudioPlayer();
-        voIpAudioPlayer.Play();
+        _voIpAudioPlayer.Play(VoIpSound.WelcomeSound);
     }
 
     /// <summary>
@@ -164,11 +166,10 @@ public class SIPRequestHandler
     /// <param name="userAgent">The user agent of the client</param>
     /// <param name="key">The key that was pressed</param>
     /// <param name="duration">The duration of the press</param>
-    private void OnDtmfTone(VoIPMediaSession session, SIPUserAgent userAgent, byte key, int duration)
+    private void OnDtmfTone(SIPUserAgent userAgent, byte key, int duration)
     {
-        var logger = ApartiumPhoneServer.GetLogger();
         var callId = userAgent.Dialogue.CallId;
-        logger.LogInformation($"Call {callId} received DTMF tone {key}, duration {duration}ms.");
+        _logger.LogInformation($"Call {callId} received DTMF tone {key}, duration {duration}ms.");
 
         var keyPressed = key switch
         {
@@ -182,63 +183,25 @@ public class SIPRequestHandler
         if (keyPressed != '#')
         {
             _keysPressed.Add(keyPressed);
-            Console.WriteLine("Hello world");
             return;
         }
-
-        Console.WriteLine("Im here bro");
-
-        PlaySelectedNumbers(session, userAgent).GetAwaiter().GetResult();
+        
+        PlaySelectedNumbers(userAgent).GetAwaiter().GetResult();
     }
 
     /// <summary>
     /// Plays the selected numbers the client chose
     /// </summary>
-    /// <param name="userAgent">the client user agent</param>
-    private async Task PlaySelectedNumbers(VoIPMediaSession session, SIPUserAgent userAgent)
+    private async Task PlaySelectedNumbers(SIPUserAgent userAgent)
     {
         foreach (var sound in _keysPressed.Select(GetVoIpSound))
         {
-            await PlaySound(session, userAgent, sound);
-            Console.WriteLine("Played this sound dude");
+            _voIpAudioPlayer.Play(sound);
+            await Task.Delay(sound.GetDuration() * 1000);
         }
 
-        Console.WriteLine("Cleared the keys pressed");
         _keysPressed.Clear();
-    }
-
-    /// <summary>
-    /// Plays a sound
-    /// </summary>
-    /// <param name="userAgent">the client user agent</param>
-    /// <param name="sound">the sound to play</param>
-    private async Task PlaySound(VoIPMediaSession session, SIPUserAgent userAgent, VoIpSound sound)
-    {
-        Console.WriteLine("Started the session");
-
-        var logger = ApartiumPhoneServer.GetLogger();
-
-        session.OnTimeout += _ =>
-        {
-            logger.LogWarning(userAgent.Dialogue != null
-                ? $"RTP timeout on call with {userAgent.Dialogue.RemoteTarget}, hanging up."
-                : $"RTP timeout on incomplete call, closing RTP session.");
-
-            if (userAgent.Dialogue == null)
-            {
-                return;
-            }
-
-            var call = _server.TryRemoveCall(userAgent.Dialogue.CallId);
-            call?.Hangup();
-        };
-
-        await session.AudioExtrasSource.StartAudio();
-        logger.LogInformation("Sending audio file.");
-
-        await using var audioStream = new FileStream(sound.GetDestination(), FileMode.Open, FileAccess.Read);
-        await session.AudioExtrasSource.SendAudioFromStream(audioStream, AudioSamplingRatesEnum.Rate8KHz);
-        session.AudioExtrasSource.SetSource(AudioSourcesEnum.None);
+        Console.WriteLine("Cleared the keys pressed");
     }
 
     /// <summary>
@@ -261,5 +224,22 @@ public class SIPRequestHandler
     private VoIpSound GetVoIpSound(char keyPressed)
     {
         return _keySounds[keyPressed];
+    }
+    
+    /// <summary>
+    /// Initializes the sip request handler logger
+    /// </summary>
+    /// <returns>the server logger</returns>
+    private Microsoft.Extensions.Logging.ILogger InitLogger()
+    {
+        var serilogLogger = new LoggerConfiguration()
+            .Enrich.FromLogContext()
+            .MinimumLevel.Is(Serilog.Events.LogEventLevel.Debug)
+            .WriteTo.Console()
+            .CreateLogger();
+
+        var factory = new SerilogLoggerFactory(serilogLogger);
+        SIPSorcery.LogFactory.Set(factory);
+        return factory.CreateLogger<SIPRequestHandler>();
     }
 }
