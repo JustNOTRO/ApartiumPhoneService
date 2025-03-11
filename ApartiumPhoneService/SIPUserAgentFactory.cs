@@ -5,7 +5,7 @@ namespace ApartiumPhoneService;
 
 public class SIPUserAgentFactory : ISIPUserAgentFactory
 {
-    public SIPUserAgentWrapper Create(SIPTransport sipTransport, SIPEndPoint outboundProxy)
+    public virtual SIPUserAgentWrapper Create(SIPTransport sipTransport, SIPEndPoint outboundProxy)
     {
         return new SIPUserAgentWrapper(sipTransport, outboundProxy);
     }

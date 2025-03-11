@@ -12,11 +12,14 @@ public class SIPUserAgentWrapper(SIPTransport sipTransport, SIPEndPoint outbound
         return base.AcceptCall(sipRequest);
     }
 
-    public new virtual Task<bool> Answer(SIPServerUserAgent serverUserAgent, IMediaSession mediaSession, IPAddress ipAddress)
+    public new virtual Task<bool> Answer(SIPServerUserAgent serverUserAgent, IMediaSession mediaSession,
+        IPAddress ipAddress)
     {
         return base.Answer(serverUserAgent, mediaSession, ipAddress);
     }
 
-    public new virtual bool IsCallActive { get; set; }
-    public new virtual SIPDialogue Dialogue => base.Dialogue;
+    public new virtual SIPDialogue Dialogue()
+    {
+        return new SIPDialogue();
+    }
 }

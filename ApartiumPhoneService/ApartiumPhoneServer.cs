@@ -43,6 +43,11 @@ public class ApartiumPhoneServer
     /// The server ip address
     /// </summary>
     private IPAddress _address;
+    
+    /// <summary>
+    /// UserAgent factory
+    /// </summary>
+    private readonly SIPUserAgentFactory _sipUserAgentFactory;
 
     /// <summary>
     /// Constructs a new SIP server
@@ -52,13 +57,14 @@ public class ApartiumPhoneServer
     {
         _sipTransport = new SIPTransport();
         _configDataProvider = new ConfigDataProvider(serverFilePath);
+        _sipUserAgentFactory = new SIPUserAgentFactory();
     }
 
     /// <summary>
     /// Gets the sip transport of our server
     /// </summary>
     /// <returns></returns>
-    public SIPTransport GetSipTransport()
+    public virtual SIPTransport GetSipTransport()
     {
         return _sipTransport;
     }
@@ -170,7 +176,7 @@ public class ApartiumPhoneServer
             return;
         }
 
-        var sipRequestHandler = new SIPRequestHandler(this, sipRequest, localSipEndPoint, remoteEndPoint, InitLogger<SIPRequestHandler>());
+        var sipRequestHandler = new SIPRequestHandler(this, sipRequest, localSipEndPoint, remoteEndPoint, _sipUserAgentFactory, InitLogger<SIPRequestHandler>());
         await sipRequestHandler.Handle();
     }
     

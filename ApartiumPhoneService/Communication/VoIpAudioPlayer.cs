@@ -14,12 +14,7 @@ public class VoIpAudioPlayer
     private SDL_AudioSpec _audioSpec;
     private uint _deviceId; // SDL Device Id
 
-    private bool _endAudioFile;
-    
-    public void setEndAudioFile(bool endAudioFile)
-    {
-        _endAudioFile = endAudioFile;
-    }
+    private bool EndAudioFile { get; set; }
     
     public VoIpAudioPlayer()
     {
@@ -43,7 +38,7 @@ public class VoIpAudioPlayer
 
     public virtual void Play(VoIpSound sound)
     {
-        _endAudioFile = false;
+        EndAudioFile = false;
         var destination = sound.GetDestination();
         
         // Open WAV file:
@@ -78,7 +73,7 @@ public class VoIpAudioPlayer
         Console.WriteLine($"\nPlaying file: {destination}");
 
         SDL_FlushEvents(SDL_EventType.SDL_AUDIODEVICEADDED, SDL_EventType.SDL_AUDIODEVICEREMOVED);
-        while (!_endAudioFile)
+        while (!EndAudioFile)
         {
             var pollEvent = SDL_PollEvent(out var sdlEvent);
             if (pollEvent > 0 && sdlEvent.type == SDL_EventType.SDL_QUIT)
@@ -100,7 +95,7 @@ public class VoIpAudioPlayer
         CloseAudioDevice();
     }
 
-    public void CloseAudioDevice()
+    private void CloseAudioDevice()
     {
         if (_deviceId != 0)
             SDL_CloseAudioDevice(_deviceId);
@@ -122,7 +117,7 @@ public class VoIpAudioPlayer
 
     private void FillWavData(IntPtr unused, IntPtr stream, int len)
     {
-        if (_endAudioFile)
+        if (EndAudioFile)
             return;
 
         /* Set up the pointers */
@@ -133,7 +128,7 @@ public class VoIpAudioPlayer
         {
             SDL_memcpy(stream, wavePtr, new IntPtr(waveLeft));
             _audioPos = 0;
-            _endAudioFile = true;
+            EndAudioFile = true;
         }
         else
         {

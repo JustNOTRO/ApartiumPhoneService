@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using ApartiumPhoneService;
 using JetBrains.Annotations;
@@ -6,8 +7,10 @@ using Moq;
 using NSubstitute;
 using Serilog;
 using Serilog.Extensions.Logging;
+using SIPSorcery.Media;
 using SIPSorcery.SIP;
 using SIPSorcery.SIP.App;
+using Xunit.Sdk;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace ApartiumPhoneServiceTests;
@@ -15,117 +18,191 @@ namespace ApartiumPhoneServiceTests;
 [TestSubject(typeof(SIPRequestHandler))]
 public class SIPRequestHandlerTest
 {
-    private const string ServerFilePath =
-        "/home/notro/RiderProjects/ApartiumPhoneService/ApartiumPhoneService/server.yml";
-
-    private readonly ApartiumPhoneServer _serverMock;
-
     private SIPRequestHandler _sipRequestHandler;
 
-    private readonly Mock<ISIPRequestWrapper> _sipRequestMock;
-    
-    private readonly Mock<LoggerWrapper> _loggerMock;
-    
-    private Mock<SIPUserAgentWrapper> _userAgentMock;
+    private readonly Mock<ApartiumPhoneServer> _serverMock = new("dummy path");
 
-    private Mock<SIPServerUserAgent> _serverUserAgentMock;
+    private SIPRequest _sipRequest;
+    private readonly Mock<SIPEndPoint> _sipEndPointMock = new(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5060));
+    private readonly Mock<SIPEndPoint> _remoteEndPointMock = new(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5060));
+    private readonly Mock<SIPUserAgentFactory> _sipUaFactoryMock = new();
+    private readonly Mock<LoggerWrapper> _loggerMock = new() { CallBase = true };
+    private Mock<SIPUserAgentWrapper> _userAgentMock;
+    
+    private readonly Mock<ConcurrentDictionary<char, VoIpSound>> _keySoundsMock = new();
+    private readonly Mock<ConcurrentBag<char>> _keysPressed = new();
+
+    private Mock<UASInviteTransactionWrapper> _uasInvTransactionMock;
     
     public SIPRequestHandlerTest()
     {
-        _serverMock = Substitute.For<ApartiumPhoneServer>(ServerFilePath);
-        _sipRequestMock = new Mock<ISIPRequestWrapper>();
-        _loggerMock = new Mock<LoggerWrapper> { CallBase = true };
+        var sipTransportMock = new Mock<SIPTransport>();
+        SetupSIPUserAgent(sipTransportMock.Object);
         
-        MockDependencies();
-    }
-
-    [Fact]
-    public void TestHandle_Incoming_Call()
-    {
-        _serverMock.TryAddCall(Arg.Any<string>(), Arg.Any<SIPOngoingCall>()).Returns(true);
-        _sipRequestHandler.Handle().ConfigureAwait(true);
-        
-        Assert.Equal(SIPMethodsEnum.INVITE, _sipRequestMock.Object.sipRequest.Method);
-        Assert.NotNull(_serverMock.GetSipTransport());
-        
-        var nextLog = _loggerMock.Object.GetNextLog();
-        Assert.Contains("Incoming call request:", nextLog);
+        _serverMock.Setup(x => x.GetSipTransport())
+            .Returns(sipTransportMock.Object)
+            .Verifiable();
     }
     
     [Fact]
+    public async Task TestHandle_Incoming_Call()
+    {
+        // Arrange
+        _serverMock.Setup(x => x.TryAddCall(It.IsAny<string>(), It.IsAny<SIPOngoingCall>()))
+            .Returns(true)
+            .Verifiable();
+
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(_serverMock.Object,
+            _sipRequest,
+            _sipEndPointMock.Object,
+            _remoteEndPointMock.Object,
+            _sipUaFactoryMock.Object,
+            _loggerMock.Object);
+        
+        await _sipRequestHandler.Handle();
+        
+        // Assert
+        var nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Incoming call request: ", nextLog);
+        AssertNoMoreLogs();
+        Assert.NotNull(_userAgentMock.Object);
+    }
+
+    [Fact]
     public async Task TestHandle_Incoming_Call_When_Adding_Call_Fails()
     {
+        // Arrange
+        var sipTransportMock = new Mock<SIPTransport>();
+        _serverMock.Setup(x => x.GetSipTransport())
+            .Returns(sipTransportMock.Object)
+            .Verifiable();
         
+        SetupSIPUserAgent(sipTransportMock.Object);
+
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(_serverMock.Object,
+            _sipRequest,
+            _sipEndPointMock.Object,
+            _remoteEndPointMock.Object,
+            _sipUaFactoryMock.Object,
+            _loggerMock.Object);
+        
+        await _sipRequestHandler.Handle();
+        
+        // Assert
+        var nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Incoming call request: ", nextLog);
+        
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Could not add call to active calls", nextLog);
+        AssertNoMoreLogs();
+        Assert.NotNull(_userAgentMock.Object);
     }
 
-    private void MockDependencies()
+    [Fact]
+    public async Task TestHandle_Incoming_Call_When_Call_Cancelled()
     {
-        _sipRequestMock.Setup(request => request.sipRequest)
-            .Returns(new SIPRequest(SIPMethodsEnum.INVITE, "sip:@500localhost"));
-        _sipRequestMock.Setup(request => request.Method).Returns(SIPMethodsEnum.INVITE);
+        // Arrange
+        var sipTransportMock = new Mock<SIPTransport>();
+        _serverMock.Setup(x => x.GetSipTransport())
+            .Returns(sipTransportMock.Object)
+            .Verifiable();
+        
+        SetupSIPUserAgent(sipTransportMock.Object);
 
-        _sipRequestMock.Object.sipRequest.Header = new SIPHeader
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(_serverMock.Object,
+            _sipRequest,
+            _sipEndPointMock.Object,
+            _remoteEndPointMock.Object,
+            _sipUaFactoryMock.Object,
+            _loggerMock.Object);
+
+        _userAgentMock.Setup(x => x.Call(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<VoIPMediaSession>(), 0))
+            .Returns(Task.FromResult(true))
+            .Verifiable();
+        
+        _userAgentMock.Setup(x => x.Cancel())
+            .CallBase()
+            .Verifiable();
+
+        await _userAgentMock.Object.Call("sip:555@localhost", "555", "123", new VoIPMediaSession());
+        await _sipRequestHandler.Handle();
+        
+        // Assert
+        var nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Incoming call request: ", nextLog);
+        
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Incoming call cancelled by remote party.", nextLog);
+        AssertNoMoreLogs();
+    }
+
+    private void AssertNoMoreLogs()
+    {
+        var logsCount = _loggerMock.Object.GetLogsCount();
+
+        if (logsCount != 0)
         {
-            From = new SIPFromHeader(null, new SIPURI("sip", "fromUser", "localhost"), "fromTag"),
-            To = new SIPToHeader(null, new SIPURI("sip", "toUser", "localhost"), "toTag"),
-            Vias = new SIPViaSet()
+            throw new InvalidOperationException("More logs were received");
+        }
+    }
+
+    private void SetupSIPUserAgent(SIPTransport sipTransport)
+    {
+        _sipRequest = new SIPRequest(SIPMethodsEnum.INVITE, "sip:500@localhost")
+        {
+            Method = SIPMethodsEnum.INVITE,
+            Header = new SIPHeader
+            {
+                Vias = new SIPViaSet()
+            }
         };
         
-        var sipViaHeader = new SIPViaHeader("127.0.0.1", 5060, "some branch");
-        _sipRequestMock.Object.sipRequest.Header.Vias.AddBottomViaHeader(sipViaHeader);
-        _sipRequestMock.Object.sipRequest.Body = "body";
+        _sipRequest.Header.Vias.PushViaHeader(new SIPViaHeader());
+        _sipRequest.Header.Vias.TopViaHeader.Host = "127.0.0.1";
+        _sipRequest.Header.From = new SIPFromHeader("sip:bob@example.com", SIPURI.ParseSIPURI("sips:notro@localhost"), "notro");
+        _sipRequest.Header.To = new SIPToHeader("sip:notro@example.com", SIPURI.ParseSIPURI("sips:notro@localhost"), "server");
+        _sipRequest.Body = "body";
+
+        var localhost = IPAddress.Parse("127.0.0.1");
+        var dummyEndPoint = new SIPEndPoint(new IPEndPoint(localhost, 5060));
         
-        var outboundProxy = new Mock<SIPEndPoint>(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5060));
-        var sipTransportMock = new Mock<SIPTransport>();
+        _userAgentMock = new Mock<SIPUserAgentWrapper>(sipTransport, null);
+        _uasInvTransactionMock = new Mock<UASInviteTransactionWrapper>(sipTransport, _sipRequest, dummyEndPoint, false);
+        var serverUaMock = new Mock<SIPServerUserAgent>(sipTransport, null, _uasInvTransactionMock.Object, new Mock<ISIPAccount>().Object);
         
-        var uasInviteTransactionMock = new Mock<UASInviteTransactionWrapper>(sipTransportMock.Object,
-            _sipRequestMock.Object.sipRequest,
-            outboundProxy.Object,
-            false);
+        _sipUaFactoryMock.Setup(x => x.Create(It.IsAny<SIPTransport>(), It.IsAny<SIPEndPoint>()))
+            .Returns(_userAgentMock.Object)
+            .Verifiable();
         
-        _serverUserAgentMock = new Mock<SIPServerUserAgent>(sipTransportMock.Object, 
-            outboundProxy.Object,
-            uasInviteTransactionMock.Object,
-            new Mock<ISIPAccount>().Object);
-       
-        _sipRequestHandler = new SIPRequestHandler(_serverMock,
-            _sipRequestMock.Object.sipRequest,
-            new SIPEndPoint(IPEndPoint.Parse("127.0.0.1")),
-            new SIPEndPoint(IPEndPoint.Parse("127.0.0.1")),
-            _loggerMock.Object
-        );
+        _userAgentMock.Setup(x => x.AcceptCall(It.IsAny<SIPRequest>()))
+            .Returns(serverUaMock.Object)
+            .Verifiable();
+
+        _userAgentMock.Setup(x => x.Answer(serverUaMock.Object, It.IsAny<VoIPMediaSession>(), localhost))
+            .Returns(Task.FromResult(true))
+            .Verifiable();
+        
+        _userAgentMock.Setup(x => x.Dialogue())
+            .Returns(new SIPDialogue())
+            .Verifiable();
     }
 }
-
-/*
- * _userAgentMock = new Mock<SIPUserAgentWrapper>();
-   _userAgentMock.Setup(agent => agent.AcceptCall(It.IsAny<SIPRequest>())).Returns(_serverUserAgentMock.Object);
-   
-   var voIpMediaSession = new VoIPMediaSession(new MediaEndPoints { AudioSource = new AudioExtrasSource() });
-   _userAgentMock.Setup(agent => agent.Answer(_serverUserAgentMock.Object, voIpMediaSession, IPAddress.Any)).Returns(Task.FromResult(true));
-
-   var voIpAudioPlayerMock = new Mock<VoIpAudioPlayer>();
-   voIpAudioPlayerMock.Setup(audioPlayer => audioPlayer.Play(It.IsAny<VoIpSound>())).Callback(() =>
-   {
-       // do nothing
-   });
-   
-   var sipDialogueMock = new Mock<SIPDialogue>();
-   _userAgentMock.Setup(agent => agent.IsCallActive).Returns(true).Verifiable();
-   _userAgentMock.Setup(userAgent => userAgent.Dialogue).Returns(sipDialogueMock.Object).Verifiable();
- */
 
 public class LoggerWrapper : ILogger
 {
     private readonly ILogger _logger;
-    
+
     private readonly Queue<string> _logs = new();
 
     public LoggerWrapper()
     {
         _logger = InitLogger();
     }
-    
+
     private ILogger InitLogger()
     {
         var serilogLogger = new LoggerConfiguration()
@@ -138,12 +215,12 @@ public class LoggerWrapper : ILogger
         SIPSorcery.LogFactory.Set(factory);
         return factory.CreateLogger<SIPRequestHandler>();
     }
-    
+
     public virtual void Log<TState>(
-        LogLevel logLevel, 
-        EventId eventId, 
-        TState state, 
-        Exception? exception, 
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
         Func<TState, Exception?, string> formatter)
     {
         _logger.Log(logLevel, eventId, state, exception, formatter);
@@ -158,20 +235,25 @@ public class LoggerWrapper : ILogger
         {
             throw new InvalidOperationException("No more logs were received.");
         }
-        
+
         return _logs.Dequeue();
     }
-    
+
+    public int GetLogsCount()
+    {
+        return _logs.Count;
+    }
+
     public bool IsEnabled(LogLevel logLevel)
     {
         return _logger.IsEnabled(logLevel);
     }
-    
+
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull
     {
         return _logger.BeginScope(state);
     }
-    
+
     public virtual void LogInformation(string message, params object[] args)
     {
         _logger.LogInformation(message, args);

@@ -33,21 +33,21 @@ public class SIPRequestHandler
 
     private readonly VoIpAudioPlayer _voIpAudioPlayer;
     
-    private ISIPUserAgentFactory _userAgentFactory;
+    private readonly ISIPUserAgentFactory _userAgentFactory;
     
     private readonly Microsoft.Extensions.Logging.ILogger _logger;
     
     public SIPRequestHandler(ApartiumPhoneServer server, SIPRequest sipRequest, SIPEndPoint sipEndPoint,
-        SIPEndPoint remoteEndPoint, ILogger logger)
+        SIPEndPoint remoteEndPoint, SIPUserAgentFactory userAgentFactory, ILogger logger)
     {
         _server = server;
-        _logger = logger;
+        _userAgentFactory = userAgentFactory;
         _sipRequest = sipRequest;
         _sipEndPoint = sipEndPoint;
         _remoteEndPoint = remoteEndPoint;
+        _logger = logger;
         _voIpAudioPlayer = new VoIpAudioPlayer();
-        _userAgentFactory = new SIPUserAgentFactory();
-        
+
         AddKeySounds();
     }
 
@@ -99,7 +99,6 @@ public class SIPRequestHandler
     private async Task HandleIncomingCall(SIPTransport sipTransport)
     {
         _logger.LogInformation($"Incoming call request: {_sipEndPoint}<-{_remoteEndPoint} {_sipRequest.URI}.");
-
         
         var sipUserAgent = _userAgentFactory.Create(sipTransport, null);
         sipUserAgent.OnCallHungup += OnHangup;
@@ -125,15 +124,9 @@ public class SIPRequestHandler
         var serverUserAgent = sipUserAgent.AcceptCall(_sipRequest);
 
         await sipUserAgent.Answer(serverUserAgent, voIpMediaSession);
-
-        if (!sipUserAgent.IsCallActive)
-        {
-            _logger.LogWarning("Call is not active");
-            return;
-        }
         
         var call = new SIPOngoingCall(sipUserAgent, serverUserAgent, _voIpAudioPlayer);
-        if (!_server.TryAddCall(sipUserAgent.Dialogue.CallId, call))
+        if (!_server.TryAddCall(sipUserAgent.Dialogue().CallId, call))
         {
             _logger.LogWarning("Could not add call to active calls");
         }
