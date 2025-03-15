@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApartiumPhoneService", "Apa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApartiumPhoneServiceTests", "ApartiumPhoneServiceTests\ApartiumPhoneServiceTests.csproj", "{64AF4932-52E7-4998-B3AD-E790B6FEDD2A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SIPSorceryMedia.SDL2", "..\SIPSorceryMedia.SDL2\src\SIPSorceryMedia.SDL2.csproj", "{4191BDDA-D576-4E0C-B126-7BC785681D93}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{64AF4932-52E7-4998-B3AD-E790B6FEDD2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{64AF4932-52E7-4998-B3AD-E790B6FEDD2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{64AF4932-52E7-4998-B3AD-E790B6FEDD2A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4191BDDA-D576-4E0C-B126-7BC785681D93}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4191BDDA-D576-4E0C-B126-7BC785681D93}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4191BDDA-D576-4E0C-B126-7BC785681D93}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4191BDDA-D576-4E0C-B126-7BC785681D93}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

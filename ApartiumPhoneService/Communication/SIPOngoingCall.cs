@@ -2,7 +2,7 @@ using SIPSorcery.SIP.App;
 
 namespace ApartiumPhoneService;
 
-public class SIPOngoingCall(SIPUserAgent userAgent, SIPServerUserAgent serverUserAgent)
+public class SIPOngoingCall(SIPUserAgent userAgent, SIPServerUserAgent serverUserAgent, VoIpAudioPlayer voIpAudioPlayer)
 {
     public void Hangup()
     {
