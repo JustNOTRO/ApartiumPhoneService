@@ -176,8 +176,8 @@ public class ApartiumPhoneServer
             return;
         }
 
-        var sipRequestHandler = new SIPRequestHandler(this, sipRequest, localSipEndPoint, remoteEndPoint, _sipUserAgentFactory, InitLogger<SIPRequestHandler>());
-        await sipRequestHandler.Handle();
+        var sipRequestHandler = new SIPRequestHandler(this, _sipUserAgentFactory, new VoIpAudioPlayer(), InitLogger<SIPRequestHandler>());
+        await sipRequestHandler.Handle(sipRequest, localSipEndPoint, remoteEndPoint);
     }
     
     /// <summary>
@@ -235,7 +235,7 @@ public class ApartiumPhoneServer
     /// Initializes the server logger
     /// </summary>
     /// <returns>the server logger</returns>
-    private static Microsoft.Extensions.Logging.ILogger<T> InitLogger<T>()
+    private static ILogger<T> InitLogger<T>()
     {
         var serilogLogger = new LoggerConfiguration()
             .Enrich.FromLogContext()

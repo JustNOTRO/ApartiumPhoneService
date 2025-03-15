@@ -20,33 +20,23 @@ namespace ApartiumPhoneService;
 public class SIPRequestHandler
 {
     private readonly ApartiumPhoneServer _server;
-
-    private readonly SIPRequest _sipRequest;
-
-    private readonly SIPEndPoint _sipEndPoint;
-
-    private readonly SIPEndPoint _remoteEndPoint;
-
+    
     private readonly ConcurrentDictionary<char, VoIpSound> _keySounds = new();
 
-    private readonly ConcurrentBag<char> _keysPressed = [];
+    private readonly List<char> _keysPressed = [];
 
-    private readonly VoIpAudioPlayer _voIpAudioPlayer;
+    private readonly VoIpAudioPlayer _audioPlayer;
     
-    private readonly ISIPUserAgentFactory _userAgentFactory;
+    private readonly SIPUserAgentFactory _userAgentFactory;
     
-    private readonly Microsoft.Extensions.Logging.ILogger _logger;
+    private readonly ILogger _logger;
     
-    public SIPRequestHandler(ApartiumPhoneServer server, SIPRequest sipRequest, SIPEndPoint sipEndPoint,
-        SIPEndPoint remoteEndPoint, SIPUserAgentFactory userAgentFactory, ILogger logger)
+    public SIPRequestHandler(ApartiumPhoneServer server, SIPUserAgentFactory userAgentFactory, VoIpAudioPlayer audioPlayer, ILogger logger)
     {
         _server = server;
         _userAgentFactory = userAgentFactory;
-        _sipRequest = sipRequest;
-        _sipEndPoint = sipEndPoint;
-        _remoteEndPoint = remoteEndPoint;
+        _audioPlayer = audioPlayer;
         _logger = logger;
-        _voIpAudioPlayer = new VoIpAudioPlayer();
 
         AddKeySounds();
     }
@@ -54,21 +44,21 @@ public class SIPRequestHandler
     /// <summary>
     /// Handles requests by method type
     /// </summary>
-    public async Task Handle()
+    public async Task Handle(SIPRequest sipRequest, SIPEndPoint sipEndPoint, SIPEndPoint remoteEndPoint)
     {
         var sipTransport = _server.GetSipTransport();
 
-        switch (_sipRequest.Method)
+        switch (sipRequest.Method)
         {
             case SIPMethodsEnum.INVITE:
             {
-                await HandleIncomingCall(sipTransport);
+                await HandleIncomingCall(sipTransport, sipRequest, sipEndPoint, remoteEndPoint);
                 break;
             }
 
             case SIPMethodsEnum.BYE:
             {
-                var byeResponse = SIPResponse.GetResponse(_sipRequest,
+                var byeResponse = SIPResponse.GetResponse(sipRequest,
                     SIPResponseStatusCodesEnum.CallLegTransactionDoesNotExist, null);
                 await sipTransport.SendResponseAsync(byeResponse);
                 break;
@@ -77,7 +67,7 @@ public class SIPRequestHandler
             case SIPMethodsEnum.SUBSCRIBE:
             {
                 var notAllowedResponse =
-                    SIPResponse.GetResponse(_sipRequest, SIPResponseStatusCodesEnum.MethodNotAllowed, null);
+                    SIPResponse.GetResponse(sipRequest, SIPResponseStatusCodesEnum.MethodNotAllowed, null);
                 await sipTransport.SendResponseAsync(notAllowedResponse);
                 break;
             }
@@ -85,24 +75,26 @@ public class SIPRequestHandler
             case SIPMethodsEnum.OPTIONS:
             case SIPMethodsEnum.REGISTER:
             {
-                var optionsResponse = SIPResponse.GetResponse(_sipRequest, SIPResponseStatusCodesEnum.Ok, null);
+                var optionsResponse = SIPResponse.GetResponse(sipRequest, SIPResponseStatusCodesEnum.Ok, null);
                 await sipTransport.SendResponseAsync(optionsResponse);
                 break;
             }
         }
     }
 
+    private readonly object _threadLock = new();
+    private readonly ManualResetEvent _manualReset = new(false);
+    
     /// <summary>
     /// Handles incoming call
     /// </summary>
     /// <param name="sipTransport">the server SIP transport</param>
-    private async Task HandleIncomingCall(SIPTransport sipTransport)
+    private async Task HandleIncomingCall(SIPTransport sipTransport, SIPRequest sipRequest, SIPEndPoint sipEndPoint, SIPEndPoint remoteEndPoint)
     {
-        _logger.LogInformation($"Incoming call request: {_sipEndPoint}<-{_remoteEndPoint} {_sipRequest.URI}.");
+        _logger.LogInformation($"Incoming call request: {sipEndPoint}<-{remoteEndPoint} {sipRequest.URI}.");
         
         var sipUserAgent = _userAgentFactory.Create(sipTransport, null);
         sipUserAgent.OnCallHungup += OnHangup;
-        sipUserAgent.ServerCallCancelled += (_, _) => _logger.LogDebug("Incoming call cancelled by remote party.");
 
         var audioSource = new AudioExtrasSource();
         var voIpMediaSession = new VoIPMediaSession(new MediaEndPoints { AudioSource = audioSource });
@@ -121,38 +113,44 @@ public class SIPRequestHandler
             sipUserAgent.Hangup();
         };
         
-        var serverUserAgent = sipUserAgent.AcceptCall(_sipRequest);
+        var serverUserAgent = sipUserAgent.AcceptCall(sipRequest);
 
+        if (serverUserAgent.IsCancelled)
+        {
+            _logger.LogInformation("Incoming call cancelled by remote party.");
+            return;
+        }
+        
         await sipUserAgent.Answer(serverUserAgent, voIpMediaSession);
         
-        var call = new SIPOngoingCall(sipUserAgent, serverUserAgent, _voIpAudioPlayer);
+        var call = new SIPOngoingCall(sipUserAgent, serverUserAgent, _audioPlayer);
         if (!_server.TryAddCall(sipUserAgent.Dialogue().CallId, call))
         {
             _logger.LogWarning("Could not add call to active calls");
         }
 
-        _voIpAudioPlayer.Play(VoIpSound.WelcomeSound);
+        await Task.Run(() => _audioPlayer.Play(VoIpSound.WelcomeSound));
+        _manualReset.Set(); // signaling the thread to continue.
     }
 
     /// <summary>
     /// Handles the call when client hangup
     /// </summary>
     /// <param name="dialogue">The call dialogue</param>
-    private void OnHangup(SIPDialogue? dialogue)
+    private void OnHangup(SIPDialogue dialogue)
     {
-        if (dialogue == null)
-        {
-            return;
-        }
-
         var callId = dialogue.CallId;
         var call = _server.TryRemoveCall(callId);
 
         // This app only uses each SIP user agent once so here the agent is 
         // explicitly closed to prevent is responding to any new SIP requests.
         call?.Hangup();
+        _audioPlayer.Stop();
+        _logger.LogInformation("Stopped audio");
     }
 
+    private readonly object _keyLock = new();
+    
     /// <summary>
     /// Handles DTMF tones received from client
     /// </summary>
@@ -161,6 +159,8 @@ public class SIPRequestHandler
     /// <param name="duration">The duration of the press</param>
     private void OnDtmfTone(SIPUserAgent userAgent, byte key, int duration)
     {
+        _manualReset.WaitOne(); // waiting until the welcome sound has finished
+        
         var callId = userAgent.Dialogue.CallId;
         _logger.LogInformation($"Call {callId} received DTMF tone {key}, duration {duration}ms.");
 
@@ -171,68 +171,65 @@ public class SIPRequestHandler
             _ => key.ToString()[0]
         };
 
-        Console.WriteLine("User pressed {0}!", keyPressed);
-
+        _logger.LogInformation("User pressed {0}!", keyPressed);
+        
         if (keyPressed != '#')
         {
-            _keysPressed.Add(keyPressed);
+            AddKeyPressed(keyPressed);
             return;
         }
         
-        PlaySelectedNumbers(userAgent).GetAwaiter().GetResult();
+        lock (_threadLock)
+        {
+            PlaySelectedNumbers();
+        }
     }
 
     /// <summary>
     /// Plays the selected numbers the client chose
     /// </summary>
-    private async Task PlaySelectedNumbers(SIPUserAgent userAgent)
+    private void PlaySelectedNumbers()
     {
         foreach (var sound in _keysPressed.Select(GetVoIpSound))
         {
-            _voIpAudioPlayer.Play(sound);
-            await Task.Delay(sound.GetDuration() * 1000);
+            _audioPlayer.Play(sound);
         }
 
-        _keysPressed.Clear();
-        Console.WriteLine("Cleared the keys pressed");
+        lock (_keyLock)
+        {
+            _keysPressed.Clear();
+            _logger.LogInformation("Cleared the keys pressed");
+        }
     }
 
     /// <summary>
-    /// Adds the key sounds
+    /// Adds the key pressed by client
+    /// </summary>
+    /// <param name="keyPressed">the key pressed</param>
+    private void AddKeyPressed(char keyPressed)
+    {
+        lock (_keyLock)
+        {
+            _keysPressed.Add(keyPressed);
+        }
+    }
+    
+    /// <summary>
+    /// Adds the key sounds from 0 to 9
     /// </summary>
     private void AddKeySounds()
     {
-        _keySounds.TryAdd('0', VoIpSound.ZeroSound);
-        _keySounds.TryAdd('1', VoIpSound.OneSound);
-        _keySounds.TryAdd('2', VoIpSound.TwoSound);
-        _keySounds.TryAdd('3', VoIpSound.ThreeSound);
-        _keySounds.TryAdd('4', VoIpSound.FourSound);
-        _keySounds.TryAdd('5', VoIpSound.FiveSound);
-        _keySounds.TryAdd('6', VoIpSound.SixSound);
-        _keySounds.TryAdd('7', VoIpSound.SevenSound);
-        _keySounds.TryAdd('8', VoIpSound.EightSound);
-        _keySounds.TryAdd('9', VoIpSound.NineSound);
+        var voIpSounds = VoIpSound.Values();
+
+        for (var i = 1; i < voIpSounds.Length; i++)
+        {
+            var key = (i - 1).ToString()[0];
+            _keySounds.TryAdd(key, voIpSounds[i]);
+        }
     }
 
     private VoIpSound GetVoIpSound(char keyPressed)
     {
         return _keySounds[keyPressed];
-    }
-    
-    /// <summary>
-    /// Initializes the sip request handler logger
-    /// </summary>
-    /// <returns>the server logger</returns>
-    private Microsoft.Extensions.Logging.ILogger InitLogger()
-    {
-        var serilogLogger = new LoggerConfiguration()
-            .Enrich.FromLogContext()
-            .MinimumLevel.Is(Serilog.Events.LogEventLevel.Debug)
-            .WriteTo.Console()
-            .CreateLogger();
-
-        var factory = new SerilogLoggerFactory(serilogLogger);
-        SIPSorcery.LogFactory.Set(factory);
-        return factory.CreateLogger<SIPRequestHandler>();
     }
 }

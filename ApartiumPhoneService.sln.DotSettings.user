@@ -1,6 +1,8 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AAction_00601_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F8dd69dcdadb94680a16bb8c74ba11e15b2e000_003F2f_003F4ceecaf7_003FAction_00601_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AArgumentNullException_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F822f0377472565b99c3167c333ec9d631630bec5a8754164f048a658ec83_003FArgumentNullException_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AAudioExtrasSource_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003Fb315817d63cbf912b12eb155d3d5a96c8e262a3d1bb0d6bdc54f76d183a81949_003FAudioExtrasSource_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AAutoResetEvent_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F8dd69dcdadb94680a16bb8c74ba11e15b2e000_003F3a_003F923002e5_003FAutoResetEvent_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ABeforeTestStarting_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F2277acd7b932598cd1de0c2b0d81dc1776b9c79368d9556545bb36b0d891c5_003FBeforeTestStarting_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ACancellationTokenSource_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003Fc6082341f4b545d4abd2b91be12aeb27c2e600_003F3a_003Ff00e3662_003FCancellationTokenSource_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ACancellationTokenSource_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F1a53cd93b8d7a3421cc3496384d8469ab9f293fe45dd311c1e59328f4faca4_003FCancellationTokenSource_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
@@ -14,6 +16,7 @@
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AEnumerable_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F34ea999903e840218f429a7be85b4aed7ee00_003Fa6_003F4147600f_003FEnumerable_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AEnvironment_002ECoreCLR_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003Fd2c2b731551b67b5329e6797e433b49779e54daaa4510ea4a29b32d7dd6e22d_003FEnvironment_002ECoreCLR_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AEqualException_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F94e3d43d4f3b8f8ca3eb532e6fb3f2212aba41d343a839f8bcb36e9e5a7e6b3_003FEqualException_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AEventWaitHandle_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F8dd69dcdadb94680a16bb8c74ba11e15b2e000_003Fcf_003Fabb89e66_003FEventWaitHandle_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AExceptionAggregator_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F38284ca4f4afe378f96fccac3e179f4bceda7a74eb151623b66d2dc3634d9b_003FExceptionAggregator_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AExceptionDispatchInfo_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F8dd69dcdadb94680a16bb8c74ba11e15b2e000_003F99_003F83e61918_003FExceptionDispatchInfo_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AException_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F3f44c5b9eb6851301091fc65ce6dd6671e1a75f8a7f12837bc921ecf12ab_003FException_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
@@ -49,6 +52,7 @@
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ANullReferenceException_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F633820b9579f4675babed79321255f1767788_003Fb1_003F291a17f9_003FNullReferenceException_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ANullReferenceException_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F446b2ff64f15e7f02a4b7c36bd9ab3dca10e16fea4b8126e2fdf4d9f48cfe14_003FNullReferenceException_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AOutOfMemoryException_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003Fba3dc4b321c34170b110d0ea4d11fc44bbe9d0c4ad759cab34d08bafcd6cfc8e_003FOutOfMemoryException_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AReturnsExtensions_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F402b2077f38742cb9b381ab9e79e493229c00_003F25_003F77664582_003FReturnsExtensions_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ASIPConstants_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003Ff4bf2406d4106dad399fd686198a86682dc56b5a448472d10ad37ccde8c2_003FSIPConstants_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ASIPDialogue_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F56b2e7149c7211ccc4e87fe66ac44bbb0b4f2db37cdc276228c5246ff4270_003FSIPDialogue_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ASIPEndPoint_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002Econfig_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FSourcesCache_003F53d3fa78495d88f526abd2d0a74630cdf2fcf8745414cc54fc8a1302b7658ca_003FSIPEndPoint_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
@@ -105,6 +109,11 @@
   &lt;TestAncestor&gt;
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call&lt;/TestId&gt;
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call_When_Adding_Call_Fails&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=0cbd2239_002Dd9a7_002D412a_002D8cc5_002D49c57634fed1/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="TestHandle_Incoming_Call_On_Hangup_When_Call_Null #2" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call_On_Hangup_When_Call_Null&lt;/TestId&gt;
   &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=0cd0d30f_002Ddbb2_002D463c_002Da696_002D810fa3ed5022/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestSetAddressWhenNullOrEmpty #18" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
@@ -207,6 +216,11 @@
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=58c56b00_002Df81e_002D48fd_002Da74f_002Dc8e84271fcf4/@EntryIndexedValue">&lt;SessionState ContinuousTestingIsOn="True" ContinuousTestingMode="3" Name="Continuous Testing" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;Solution /&gt;
 &lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=5f5d80d1_002D1e3c_002D4f0b_002D85c4_002D48989d462e46/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestHandle_Incoming_Call_When_Call_Cancelled" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=612a5cdf_002Df529_002D454c_002Da63f_002Dfccce6b5b854/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestHandle_Incoming_Call #4" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;TestAncestor&gt;
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call&lt;/TestId&gt;
@@ -257,7 +271,7 @@
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.ApartiumPhoneServerTest&lt;/TestId&gt;
   &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String>
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=9edb8b29_002Db24b_002D4cc0_002D9ea0_002Dc24f56d0195e/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="TestHandle_Incoming_Call" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=9edb8b29_002Db24b_002D4cc0_002D9ea0_002Dc24f56d0195e/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestHandle_Incoming_Call" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;TestAncestor&gt;
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call&lt;/TestId&gt;
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call_When_Adding_Call_Fails&lt;/TestId&gt;
@@ -339,9 +353,19 @@
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call&lt;/TestId&gt;
   &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=d60b96f4_002Dbbb1_002D43c1_002D9854_002Dd9bead3092c3/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestHandle_Incoming_Call_When_Call_Cancelled #2" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call_When_Call_Cancelled&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=da075703_002Dbac2_002D4baf_002Da1da_002D216e836f6ed9/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestSetAddressWhenNullOrEmpty #19" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;TestAncestor&gt;
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.ApartiumPhoneServerTest.TestSetAddressWhenNullOrEmpty&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=da90b479_002Daa9c_002D4603_002D8478_002D4698d4547f0e/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestHandle_Incoming_Call_On_Hangup_When_Call_Null" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call_On_Hangup_When_Call_Null&lt;/TestId&gt;
   &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=dd27c22b_002Da666_002D4c77_002Dbc93_002D07407b08f7da/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestSetAddressWhenNullOrEmpty #13" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
@@ -379,7 +403,7 @@
 &lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=fc229017_002Dc7ad_002D4c2f_002D8d32_002D2b14323a5a9c/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestHandle_On_Incoming_Call #3" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;TestAncestor&gt;
-    &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call&lt;/TestId&gt;
+    &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest&lt;/TestId&gt;
   &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=notro/@EntryIndexedValue">True</s:Boolean>

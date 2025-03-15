@@ -1,6 +1,9 @@
-using SIPSorcery.SIP.App;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Extensions.Logging;
 using SIPSorceryMedia.SDL2;
 using static SDL2.SDL;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace ApartiumPhoneService;
 
@@ -16,13 +19,14 @@ public class VoIpAudioPlayer
 
     private bool EndAudioFile { get; set; }
     
+    private readonly ILogger _logger;
+    
     public VoIpAudioPlayer()
     {
-        Console.WriteLine("Initialized VoIpAudioPlayer");
-        
+        _logger = InitLogger();
         SDL2Helper.InitSDL();
-
-        Console.WriteLine("\nInit done");
+        
+        _logger.LogInformation("Initialized VoIpAudioPlayer");
 
         // Get list of Audio Playback devices
         var sdlDevices = SDL2Helper.GetAudioPlaybackDevices();
@@ -30,10 +34,26 @@ public class VoIpAudioPlayer
         // Quit since no Audio playback found
         if (sdlDevices.Count == 0)
         {
-            Console.WriteLine("No Audio playback devices found ...");
+            _logger.LogError("No Audio playback devices found ...");
             SDL2Helper.QuitSDL();
-            Environment.Exit(1);
         }
+    }
+    
+    /// <summary>
+    /// Initializes the sip request handler logger
+    /// </summary>
+    /// <returns>the server logger</returns>
+    private ILogger InitLogger()
+    {
+        var serilogLogger = new LoggerConfiguration()
+            .Enrich.FromLogContext()
+            .MinimumLevel.Is(Serilog.Events.LogEventLevel.Debug)
+            .WriteTo.Console()
+            .CreateLogger();
+
+        var factory = new SerilogLoggerFactory(serilogLogger);
+        SIPSorcery.LogFactory.Set(factory);
+        return factory.CreateLogger<SIPRequestHandler>();
     }
 
     public virtual void Play(VoIpSound sound)
@@ -44,7 +64,7 @@ public class VoIpAudioPlayer
         // Open WAV file:
         if (SDL_LoadWAV(destination, out _audioSpec, out _audioBuffer, out _audioLen) < 0)
         {
-            Console.WriteLine("\nCannot open audio file - its format is not supported");
+            _logger.LogError("\nCannot open audio file - its format is not supported");
             SDL2Helper.QuitSDL();
             Environment.Exit(1);
         }
@@ -52,7 +72,7 @@ public class VoIpAudioPlayer
         // Check len of the Wav file
         if (_audioLen == 0)
         {
-            Console.WriteLine("\nAudio file not found - path is incorrect");
+            _logger.LogError("\nAudio file not found - path is incorrect");
             SDL2Helper.QuitSDL();
             Environment.Exit(1);
         }
@@ -65,35 +85,35 @@ public class VoIpAudioPlayer
 
         if (_deviceId == 0)
         {
-            Console.WriteLine("\nCannot open Audio device ...");
+            _logger.LogError("\nCannot open Audio device ...");
             SDL2Helper.QuitSDL();
             Environment.Exit(1);
         }
         
-        Console.WriteLine($"\nPlaying file: {destination}");
+        _logger.LogInformation($"\nPlaying file: {destination}");
 
         SDL_FlushEvents(SDL_EventType.SDL_AUDIODEVICEADDED, SDL_EventType.SDL_AUDIODEVICEREMOVED);
+
         while (!EndAudioFile)
         {
-            var pollEvent = SDL_PollEvent(out var sdlEvent);
-            if (pollEvent > 0 && sdlEvent.type == SDL_EventType.SDL_QUIT)
-            {
-                break;
-            }
-            
             SDL_Delay(100);
         }
         
+        _logger.LogInformation("Finished playing {0}", destination);
+        SDL_FreeWAV(_audioBuffer);
+        
         // No more need callback
         _audioSpec.callback = null;
-
-        // Free WAV file
-        SDL_FreeWAV(_audioBuffer);
-
-        Console.WriteLine("Finished playing {0}", destination);
         
         CloseAudioDevice();
     }
+
+    public void Stop()
+    {
+        ToggleAudioPlay(false);
+    }
+    
+    public bool IsCurrentlyPlaying => EndAudioFile;
 
     private void CloseAudioDevice()
     {
@@ -101,16 +121,22 @@ public class VoIpAudioPlayer
             SDL_CloseAudioDevice(_deviceId);
     }
 
+    private void ToggleAudioPlay(bool state)
+    {
+        if (_deviceId != 0)
+        {
+            /* Let the audio run */
+            SDL_PauseAudioDevice(_deviceId, !state ? SDL_TRUE : SDL_FALSE);
+        }
+    }
+    
     private uint OpenAudioDevice()
     {
         /* Initialize fillerup() variables */
         _deviceId = SDL_OpenAudioDevice(null, SDL_FALSE, ref _audioSpec, out _,
             0);
-        if (_deviceId != 0)
-        {
-            /* Let the audio run */
-            SDL_PauseAudioDevice(_deviceId, SDL_FALSE);
-        }
+        
+        ToggleAudioPlay(true);
 
         return _deviceId;
     }

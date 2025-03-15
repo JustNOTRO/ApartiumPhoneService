@@ -23,4 +23,24 @@ public class VoIpSound(string destination, int duration)
     public static readonly VoIpSound SevenSound = new("Sounds/seven.wav", 5);
     public static readonly VoIpSound EightSound = new("Sounds/eight.wav", 5);
     public static readonly VoIpSound NineSound = new("Sounds/nine.wav", 5);
+
+    public static VoIpSound[] Values()
+    {
+        return
+        [
+            WelcomeSound,
+            ZeroSound,
+            OneSound,
+            TwoSound,
+            ThreeSound,
+            FourSound,
+            FiveSound,
+            SixSound,
+            SevenSound,
+            EightSound,
+            NineSound
+        ];
+    }
+    
+    
 }

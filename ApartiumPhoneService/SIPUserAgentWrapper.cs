@@ -20,6 +20,14 @@ public class SIPUserAgentWrapper(SIPTransport sipTransport, SIPEndPoint outbound
 
     public new virtual SIPDialogue Dialogue()
     {
-        return new SIPDialogue();
+        return base.Dialogue;
     }
+
+    public new virtual void Hangup()
+    {
+        base.Hangup();
+    }
+
+    public new virtual bool IsCallActive => base.IsCallActive;
+    
 }

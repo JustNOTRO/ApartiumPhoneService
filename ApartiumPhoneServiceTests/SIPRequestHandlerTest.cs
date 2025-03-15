@@ -5,6 +5,7 @@ using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Serilog;
 using Serilog.Extensions.Logging;
 using SIPSorcery.Media;
@@ -27,21 +28,27 @@ public class SIPRequestHandlerTest
     private readonly Mock<SIPEndPoint> _remoteEndPointMock = new(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5060));
     private readonly Mock<SIPUserAgentFactory> _sipUaFactoryMock = new();
     private readonly Mock<LoggerWrapper> _loggerMock = new() { CallBase = true };
+    
     private Mock<SIPUserAgentWrapper> _userAgentMock;
+    private Mock<UASInviteTransactionWrapper> _uasInvTransactionMock;
+    private Mock<SIPServerUserAgentWrapper> _serverUaMock = new();
     
     private readonly Mock<ConcurrentDictionary<char, VoIpSound>> _keySoundsMock = new();
     private readonly Mock<ConcurrentBag<char>> _keysPressed = new();
-
-    private Mock<UASInviteTransactionWrapper> _uasInvTransactionMock;
+    
+    private readonly Mock<VoIpAudioPlayer> _voIpAudioPlayerMock = new();
     
     public SIPRequestHandlerTest()
     {
+        // Arrange
         var sipTransportMock = new Mock<SIPTransport>();
         SetupSIPUserAgent(sipTransportMock.Object);
         
         _serverMock.Setup(x => x.GetSipTransport())
             .Returns(sipTransportMock.Object)
             .Verifiable();
+
+        _voIpAudioPlayerMock.Setup(x => x.Play(It.IsAny<VoIpSound>())).Verifiable();
     }
     
     [Fact]
@@ -54,13 +61,11 @@ public class SIPRequestHandlerTest
 
         // Act
         _sipRequestHandler = new SIPRequestHandler(_serverMock.Object,
-            _sipRequest,
-            _sipEndPointMock.Object,
-            _remoteEndPointMock.Object,
             _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
             _loggerMock.Object);
         
-        await _sipRequestHandler.Handle();
+        await _sipRequestHandler.Handle(_sipRequest, _sipEndPointMock.Object, _remoteEndPointMock.Object);
         
         // Assert
         var nextLog = _loggerMock.Object.GetNextLog();
@@ -72,23 +77,13 @@ public class SIPRequestHandlerTest
     [Fact]
     public async Task TestHandle_Incoming_Call_When_Adding_Call_Fails()
     {
-        // Arrange
-        var sipTransportMock = new Mock<SIPTransport>();
-        _serverMock.Setup(x => x.GetSipTransport())
-            .Returns(sipTransportMock.Object)
-            .Verifiable();
-        
-        SetupSIPUserAgent(sipTransportMock.Object);
-
         // Act
         _sipRequestHandler = new SIPRequestHandler(_serverMock.Object,
-            _sipRequest,
-            _sipEndPointMock.Object,
-            _remoteEndPointMock.Object,
             _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
             _loggerMock.Object);
         
-        await _sipRequestHandler.Handle();
+        await _sipRequestHandler.Handle(_sipRequest, _sipEndPointMock.Object, _remoteEndPointMock.Object);
         
         // Assert
         var nextLog = _loggerMock.Object.GetNextLog();
@@ -104,40 +99,73 @@ public class SIPRequestHandlerTest
     public async Task TestHandle_Incoming_Call_When_Call_Cancelled()
     {
         // Arrange
-        var sipTransportMock = new Mock<SIPTransport>();
-        _serverMock.Setup(x => x.GetSipTransport())
-            .Returns(sipTransportMock.Object)
+        _serverMock.Setup(x => x.TryAddCall(It.IsAny<string>(), It.IsAny<SIPOngoingCall>()))
+            .Returns(true)
             .Verifiable();
         
-        SetupSIPUserAgent(sipTransportMock.Object);
-
+        _serverUaMock.Setup(x => x.IsCancelled)
+            .Returns(true)
+            .Verifiable();
+        
+        _serverUaMock.Object.SetCancelled(true);
+        
         // Act
         _sipRequestHandler = new SIPRequestHandler(_serverMock.Object,
-            _sipRequest,
-            _sipEndPointMock.Object,
-            _remoteEndPointMock.Object,
             _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
             _loggerMock.Object);
-
-        _userAgentMock.Setup(x => x.Call(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<VoIPMediaSession>(), 0))
-            .Returns(Task.FromResult(true))
-            .Verifiable();
         
-        _userAgentMock.Setup(x => x.Cancel())
-            .CallBase()
-            .Verifiable();
-
-        await _userAgentMock.Object.Call("sip:555@localhost", "555", "123", new VoIPMediaSession());
-        await _sipRequestHandler.Handle();
+        await _sipRequestHandler.Handle(_sipRequest, _sipEndPointMock.Object, _remoteEndPointMock.Object);
         
         // Assert
+        Assert.Equal(2, _loggerMock.Object.GetLogsCount());
+        
         var nextLog = _loggerMock.Object.GetNextLog();
         Assert.Contains("Incoming call request: ", nextLog);
         
         nextLog = _loggerMock.Object.GetNextLog();
         Assert.Contains("Incoming call cancelled by remote party.", nextLog);
         AssertNoMoreLogs();
+    }
+
+    [Fact]
+    public async Task TestHandle_Incoming_Call_On_Hangup_When_Call_Null()
+    {
+        // Arrange
+        _userAgentMock.Object.Dialogue().CallId = "123";
+        
+        _serverMock.Setup(x => x.TryRemoveCall(It.Is<string>(callId => callId != "123")))
+            .Returns((SIPOngoingCall)null)
+            .Verifiable();
+        
+        _serverMock.Setup(x => x.TryAddCall(It.IsAny<string>(), It.IsAny<SIPOngoingCall>()))
+            .Returns(true)
+            .Verifiable();
+        
+        _userAgentMock.Setup(x => x.IsCallActive)
+            .Returns(true)
+            .Verifiable();
+        
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(
+            _serverMock.Object,
+            _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
+            _loggerMock.Object
+        );
+        
+        await _sipRequestHandler.Handle(_sipRequest,
+            _sipEndPointMock.Object,
+            _remoteEndPointMock.Object
+        );
+        
+        // Assert
+        var nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Incoming call request: ", nextLog);
+        AssertNoMoreLogs();
+
+        Assert.NotNull(_userAgentMock.Object.Dialogue().CallId);
+        Assert.Null(_serverMock.Object.TryRemoveCall("134"));
     }
 
     private void AssertNoMoreLogs()
@@ -172,17 +200,17 @@ public class SIPRequestHandlerTest
         
         _userAgentMock = new Mock<SIPUserAgentWrapper>(sipTransport, null);
         _uasInvTransactionMock = new Mock<UASInviteTransactionWrapper>(sipTransport, _sipRequest, dummyEndPoint, false);
-        var serverUaMock = new Mock<SIPServerUserAgent>(sipTransport, null, _uasInvTransactionMock.Object, new Mock<ISIPAccount>().Object);
+        _serverUaMock = new Mock<SIPServerUserAgentWrapper>(sipTransport, null, _uasInvTransactionMock.Object, new Mock<ISIPAccount>().Object);
         
         _sipUaFactoryMock.Setup(x => x.Create(It.IsAny<SIPTransport>(), It.IsAny<SIPEndPoint>()))
             .Returns(_userAgentMock.Object)
             .Verifiable();
         
         _userAgentMock.Setup(x => x.AcceptCall(It.IsAny<SIPRequest>()))
-            .Returns(serverUaMock.Object)
+            .Returns(_serverUaMock.Object)
             .Verifiable();
 
-        _userAgentMock.Setup(x => x.Answer(serverUaMock.Object, It.IsAny<VoIPMediaSession>(), localhost))
+        _userAgentMock.Setup(x => x.Answer(_serverUaMock.Object, It.IsAny<VoIPMediaSession>(), localhost))
             .Returns(Task.FromResult(true))
             .Verifiable();
         
@@ -190,6 +218,18 @@ public class SIPRequestHandlerTest
             .Returns(new SIPDialogue())
             .Verifiable();
     }
+}
+
+public class SIPServerUserAgentWrapper(SIPTransport sipTransport, SIPEndPoint outboundProxy, UASInviteTransactionWrapper inviteTransaction, ISIPAccount account) 
+    : SIPServerUserAgent(sipTransport, outboundProxy, inviteTransaction, account)
+{
+
+    public void SetCancelled(bool state)
+    {
+        m_isCancelled = state;
+    }
+    
+    public new virtual bool IsCancelled => base.IsCancelled;
 }
 
 public class LoggerWrapper : ILogger
@@ -272,4 +312,10 @@ public class UASInviteTransactionWrapper(
     SIPRequest sipRequest,
     SIPEndPoint outboundProxy,
     bool noCdr)
-    : UASInviteTransaction(sipTransport, sipRequest, outboundProxy, noCdr);
+    : UASInviteTransaction(sipTransport, sipRequest, outboundProxy, noCdr)
+{
+    public virtual void CancelCall(SIPRequest? sipRequest = null)
+    {
+        base.CancelCall(sipRequest);
+    }
+}
