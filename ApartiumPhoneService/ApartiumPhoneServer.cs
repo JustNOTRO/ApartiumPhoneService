@@ -37,12 +37,17 @@ public class ApartiumPhoneServer
     /// <summary>
     /// Our logger for logging errors and warnings
     /// </summary>
-    private static readonly Microsoft.Extensions.Logging.ILogger Logger = InitLogger();
+    private static readonly Microsoft.Extensions.Logging.ILogger Logger = InitLogger<ApartiumPhoneServer>();
 
     /// <summary>
     /// The server ip address
     /// </summary>
     private IPAddress _address;
+    
+    /// <summary>
+    /// UserAgent factory
+    /// </summary>
+    private readonly SIPUserAgentFactory _sipUserAgentFactory;
 
     /// <summary>
     /// Constructs a new SIP server
@@ -52,22 +57,14 @@ public class ApartiumPhoneServer
     {
         _sipTransport = new SIPTransport();
         _configDataProvider = new ConfigDataProvider(serverFilePath);
-    }
-
-    /// <summary>
-    /// Gets the server Logger
-    /// </summary>
-    /// <returns>the server Logger</returns>
-    public static Microsoft.Extensions.Logging.ILogger GetLogger()
-    {
-        return Logger;
+        _sipUserAgentFactory = new SIPUserAgentFactory();
     }
 
     /// <summary>
     /// Gets the sip transport of our server
     /// </summary>
     /// <returns></returns>
-    public SIPTransport GetSipTransport()
+    public virtual SIPTransport GetSipTransport()
     {
         return _sipTransport;
     }
@@ -137,7 +134,7 @@ public class ApartiumPhoneServer
             return;
         }
 
-        _sipTransport.EnableTraceLogs();
+        //_sipTransport.EnableTraceLogs();
         StartRegistrations();
         _sipTransport.SIPTransportRequestReceived += OnRequest;
 
@@ -151,15 +148,20 @@ public class ApartiumPhoneServer
         Console.WriteLine("Press any key to shutdown...");
 
         // Ensuring it is not a test case
+        // I had no choice, Wrapping a Console and then changing his methods to virtual isn't ideal
         if (Console.LargestWindowWidth != 0)
         {
             Console.ReadKey(true);
-            _sipTransport.Shutdown();
-            _calls.Clear();
+            
+            foreach (var call in _calls.Values)
+            {
+                call.Hangup();
+            }
         }
 
         Logger.LogInformation("Exiting...");
         Logger.LogInformation("Shutting down SIP transport...");
+        _sipTransport.Shutdown();
     }
 
     /// <summary>
@@ -175,8 +177,8 @@ public class ApartiumPhoneServer
             return;
         }
 
-        var sipRequestHandler = new SIPRequestHandler(this, sipRequest, localSipEndPoint, remoteEndPoint);
-        await sipRequestHandler.Handle();
+        var sipRequestHandler = new SIPRequestHandler(this, _sipUserAgentFactory, new VoIpAudioPlayer(), InitLogger<SIPRequestHandler>());
+        await sipRequestHandler.Handle(sipRequest, localSipEndPoint, remoteEndPoint);
     }
     
     /// <summary>
@@ -214,7 +216,7 @@ public class ApartiumPhoneServer
     /// <param name="callId">the call id</param>
     /// <param name="call">the ongoing call</param>
     /// <returns>True if succeeded, false otherwise</returns>
-    public bool TryAddCall(string callId, SIPOngoingCall call)
+    public virtual bool TryAddCall(string callId, SIPOngoingCall call)
     {
         return _calls.TryAdd(callId, call);
     }
@@ -224,7 +226,7 @@ public class ApartiumPhoneServer
     /// </summary>
     /// <param name="callId"></param>
     /// <returns>the removed call, otherwise null</returns>
-    public SIPOngoingCall? TryRemoveCall(string callId)
+    public virtual SIPOngoingCall? TryRemoveCall(string callId)
     {
         _calls.TryRemove(callId, out var call);
         return call;
@@ -234,7 +236,7 @@ public class ApartiumPhoneServer
     /// Initializes the server logger
     /// </summary>
     /// <returns>the server logger</returns>
-    private static Microsoft.Extensions.Logging.ILogger InitLogger()
+    private static ILogger<T> InitLogger<T>()
     {
         var serilogLogger = new LoggerConfiguration()
             .Enrich.FromLogContext()
@@ -244,6 +246,6 @@ public class ApartiumPhoneServer
 
         var factory = new SerilogLoggerFactory(serilogLogger);
         SIPSorcery.LogFactory.Set(factory);
-        return factory.CreateLogger<ApartiumPhoneServer>();
+        return factory.CreateLogger<T>();
     }
 }
