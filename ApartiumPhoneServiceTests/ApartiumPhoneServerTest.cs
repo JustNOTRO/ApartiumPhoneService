@@ -1,8 +1,6 @@
 using System.Net;
-using System.Text;
 using ApartiumPhoneService;
 using JetBrains.Annotations;
-using Moq;
 using NSubstitute;
 using SIPSorcery.SIP;
 
@@ -12,7 +10,7 @@ namespace ApartiumPhoneServiceTests;
 public class ApartiumPhoneServerTest
 {
     private const string ServerFilePath =
-        "/home/notro/RiderProjects/ApartiumPhoneService/ApartiumPhoneService/Data/server.yml";
+        "/home/notro/RiderProjects/ApartiumPhoneService/ApartiumPhoneService/server.yml";
 
     private readonly ApartiumPhoneServer _apartiumPhoneServer;
 

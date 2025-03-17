@@ -1,5 +1,4 @@
 using SIPSorcery.SIP;
-using SIPSorcery.SIP.App;
 
 namespace ApartiumPhoneService;
 

@@ -16,15 +16,43 @@ namespace ApartiumPhoneService;
 /// <param name="remoteEndPoint">the remote end point</param>
 public class SIPRequestHandler
 {
+    /// <summary>
+    /// The phone server
+    /// </summary>
     private readonly ApartiumPhoneServer _server;
+    
+    /// <summary>
+    /// The user agent factory
+    /// </summary>
     private readonly SIPUserAgentFactory _userAgentFactory;
     
+    /// <summary>
+    /// The audio player
+    /// </summary>
     private readonly VoIpAudioPlayer _audioPlayer;
+    
+    /// <summary>
+    /// Logger for logging information
+    /// </summary>
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// Thread-safe dictionary for handling key sounds
+    /// </summary>
     private readonly ConcurrentDictionary<char, VoIpSound> _keySounds;
+    
+    /// <summary>
+    /// The keys pressed
+    /// </summary>
     private readonly List<char> _keysPressed;
 
+    /// <summary>
+    /// Constructs the sip request handler
+    /// </summary>
+    /// <param name="server">The phone server to handle the requests</param>
+    /// <param name="userAgentFactory">The user agent factory</param>
+    /// <param name="audioPlayer">The audio player</param>
+    /// <param name="logger">The logger for logging information</param>
     public SIPRequestHandler(ApartiumPhoneServer server, SIPUserAgentFactory userAgentFactory, VoIpAudioPlayer audioPlayer, ILogger logger)
     {
         _server = server;
@@ -41,6 +69,9 @@ public class SIPRequestHandler
     /// <summary>
     /// Handles requests by method type
     /// </summary>
+    /// <param name="sipRequest">The sip request to handle</param>
+    /// <param name="sipEndPoint">The local endpoint</param>
+    /// <param name="remoteEndPoint">The remote endpoint</param>
     public async Task Handle(SIPRequest sipRequest, SIPEndPoint sipEndPoint, SIPEndPoint remoteEndPoint)
     {
         var sipTransport = _server.GetSipTransport();
@@ -79,7 +110,14 @@ public class SIPRequestHandler
         }
     }
 
+    /// <summary>
+    /// Thread lock object for locking the play selected numbers and avoiding data races
+    /// </summary>
     private readonly object _threadLock = new();
+    
+    /// <summary>
+    /// Using ManualReset for freezing the DTMF thread until the welcome & explanation sound is finished.
+    /// </summary>
     private readonly ManualResetEvent _manualReset = new(false);
     
     /// <summary>

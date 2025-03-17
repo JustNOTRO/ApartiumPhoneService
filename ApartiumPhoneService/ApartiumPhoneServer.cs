@@ -148,6 +148,7 @@ public class ApartiumPhoneServer
         Console.WriteLine("Press any key to shutdown...");
 
         // Ensuring it is not a test case
+        // I had no choice, Wrapping a Console and then changing his methods to virtual isn't ideal
         if (Console.LargestWindowWidth != 0)
         {
             Console.ReadKey(true);

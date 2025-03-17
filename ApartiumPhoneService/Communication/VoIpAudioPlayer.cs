@@ -7,20 +7,49 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace ApartiumPhoneService;
 
+/// <summary>
+/// An audio player that handles playing & pausing audio with SDL
+/// </summary>
 public class VoIpAudioPlayer
 {
-    //const String WAV_FILE_PATH = "./../../../../../media/file_example_WAV_1MG.wav";
-    private IntPtr _audioBuffer; /* Pointer to wave data - uint8 */
-    private uint _audioLen; /* Length of wave data * - uint32 */
-    private int _audioPos; /* Current play position */
+    /// <summary>
+    /// Pointer to wave data - uint8
+    /// </summary>
+    private IntPtr _audioBuffer;
+    
+    /// <summary>
+    /// Length of wave data * - uint32
+    /// </summary>
+    private uint _audioLen;
+    
+    /// <summary>
+    /// Current play position
+    /// </summary>
+    private int _audioPos;
 
+    /// <summary>
+    /// Audio spec
+    /// </summary>
     private SDL_AudioSpec _audioSpec;
+    
+    /// <summary>
+    /// The device id
+    /// </summary>
     private uint _deviceId; // SDL Device Id
 
+    /// <summary>
+    /// End of audio file, true if ended, false otherwise
+    /// </summary>
     private bool EndAudioFile { get; set; }
     
+    /// <summary>
+    /// Logger for logging information
+    /// </summary>
     private readonly ILogger _logger;
     
+    /// <summary>
+    /// Constructs a new audio player
+    /// </summary>
     public VoIpAudioPlayer()
     {
         _logger = InitLogger();
@@ -56,6 +85,10 @@ public class VoIpAudioPlayer
         return factory.CreateLogger<SIPRequestHandler>();
     }
 
+    /// <summary>
+    /// Plays a sound
+    /// </summary>
+    /// <param name="sound">the sound to play</param>
     public virtual void Play(VoIpSound sound)
     {
         EndAudioFile = false;
@@ -108,19 +141,28 @@ public class VoIpAudioPlayer
         CloseAudioDevice();
     }
 
+    /// <summary>
+    /// Stops the current sound playing
+    /// </summary>
     public void Stop()
     {
         ToggleAudioPlay(false);
     }
     
-    public bool IsCurrentlyPlaying => EndAudioFile;
 
+    /// <summary>
+    /// Closes the audio device
+    /// </summary>
     private void CloseAudioDevice()
     {
         if (_deviceId != 0)
             SDL_CloseAudioDevice(_deviceId);
     }
 
+    /// <summary>
+    /// Toggles audio play
+    /// </summary>
+    /// <param name="state">true for playing, false for pausing</param>
     private void ToggleAudioPlay(bool state)
     {
         if (_deviceId != 0)
@@ -130,6 +172,10 @@ public class VoIpAudioPlayer
         }
     }
     
+    /// <summary>
+    /// Opens default audio device
+    /// </summary>
+    /// <returns></returns>
     private uint OpenAudioDevice()
     {
         /* Initialize fillerup() variables */
@@ -141,7 +187,12 @@ public class VoIpAudioPlayer
         return _deviceId;
     }
 
-    private void FillWavData(IntPtr unused, IntPtr stream, int len)
+    /// <summary>
+    /// Fills the data of the sound
+    /// </summary>
+    /// <param name="stream">The audio stream</param>
+    /// <param name="len">The length of the audio</param>
+    private void FillWavData(IntPtr ignored, IntPtr stream, int len)
     {
         if (EndAudioFile)
             return;

@@ -4,6 +4,11 @@ using SIPSorcery.SIP.App;
 
 namespace ApartiumPhoneService;
 
+/// <summary>
+/// UserAgent wrapper class for mocking the behavior of UserAgent
+/// </summary>
+/// <param name="sipTransport">The sip transport that manages the sip channels</param>
+/// <param name="outboundProxy">The outbound proxy</param>
 public class SIPUserAgentWrapper(SIPTransport sipTransport, SIPEndPoint outboundProxy)
     : SIPUserAgent(sipTransport, outboundProxy)
 {

@@ -263,6 +263,12 @@
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest&lt;/TestId&gt;
   &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=5f876328_002D3cca_002D4500_002Da20b_002De697513632dd/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="SIPRequestHandlerTest" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest&lt;/TestId&gt;
+    &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.ApartiumPhoneServerTest&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=612a5cdf_002Df529_002D454c_002Da63f_002Dfccce6b5b854/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestHandle_Incoming_Call #4" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;TestAncestor&gt;
     &lt;TestId&gt;xUnit::64AF4932-52E7-4998-B3AD-E790B6FEDD2A::net8.0::ApartiumPhoneServiceTests.SIPRequestHandlerTest.TestHandle_Incoming_Call&lt;/TestId&gt;

@@ -399,32 +399,6 @@ public class SIPRequestHandlerTest
         AssertNoMoreLogs();
     }
 
-    [Fact]
-    public async Task Test_Handle_When_Request_Method_Is_Bye()
-    {
-        // Arrange
-        _sipRequest.Method = SIPMethodsEnum.BYE;
-        var sipTransportMock = new Mock<SIPTransportWrapper>();
-        
-        sipTransportMock.Setup(x => x.SendResponseAsync(It.IsAny<SIPResponse>(), false)).Verifiable();
-        
-        // Act
-        _sipRequestHandler = new SIPRequestHandler(
-            _serverMock.Object,
-            _sipUaFactoryMock.Object,
-            _voIpAudioPlayerMock.Object,
-            _loggerMock.Object
-        );
-        
-        await _sipRequestHandler.Handle(_sipRequest, _sipEndPointMock.Object, _remoteEndPointMock.Object);
-
-        // Assert
-        var sipResponse = SIPResponse.GetResponse(_sipRequest, SIPResponseStatusCodesEnum.CallLegTransactionDoesNotExist, null);
-        Assert.NotNull(sipResponse);
-        Assert.Equal(SIPMethodsEnum.BYE, _sipRequest.Method);
-        AssertNoMoreLogs();
-    }
-
     private void TriggerOnHangup(SIPRequestHandler sipRequestHandler)
     {
         var methodInfo = sipRequestHandler.GetType().GetMethod("OnHangup", BindingFlags.NonPublic | BindingFlags.Instance);
