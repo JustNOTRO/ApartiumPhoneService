@@ -108,22 +108,50 @@ public class ApartiumPhoneServerTest
     [Fact]
     public void TestOnRequest_When_In_Dialog()
     {
-        var mockSipRequest = new Mock<SIPRequest>();
-        var sipHeader = new SIPHeader()
+        var sipRequest = new SIPRequest(SIPMethodsEnum.INVITE, "sip:500@localhost");
+        var sipHeader = new SIPHeader
         {
             From = new SIPFromHeader(null, new SIPURI("sip", "fromUser", "localhost"), "fromTag"),
             To = new SIPToHeader(null, new SIPURI("sip", "toUser", "localhost"), "toTag")
         };
 
-        mockSipRequest.Setup(request => request.Header).Returns(sipHeader);
+        sipRequest.Header = sipHeader;
 
         var input = new StringReader("lv6");
         Console.SetIn(input);
         _apartiumPhoneServer.Start();
 
         // Act
-        var fromTag = mockSipRequest.Object.Header.From.FromTag;
-        var toTag = mockSipRequest.Object.Header.To.ToTag;
+        var fromTag = sipRequest.Header.From.FromTag;
+        var toTag = sipRequest.Header.To.ToTag;
+
+        // Assert
+        Assert.NotNull(fromTag);
+        Assert.NotNull(toTag);
+        Assert.Equal("fromTag", fromTag);
+        Assert.Equal("toTag", toTag);
+    }
+
+    [Fact]
+    public void TestOnRequest()
+    {
+        // Arrange
+        var sipRequest = new SIPRequest(SIPMethodsEnum.INVITE, "sip:500@localhost");
+        var sipHeader = new SIPHeader
+        {
+            From = new SIPFromHeader(null, new SIPURI("sip", "fromUser", "localhost"), "fromTag"),
+            To = new SIPToHeader(null, new SIPURI("sip", "toUser", "localhost"), "toTag")
+        };
+
+        sipRequest.Header = sipHeader;
+
+        var input = new StringReader("lv6");
+        Console.SetIn(input);
+        _apartiumPhoneServer.Start();
+
+        // Act
+        var fromTag = sipRequest.Header.From.FromTag;
+        var toTag = sipRequest.Header.To.ToTag;
 
         // Assert
         Assert.NotNull(fromTag);

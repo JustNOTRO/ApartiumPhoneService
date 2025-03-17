@@ -17,7 +17,13 @@
         <PackageReference Include="SIPSorceryMedia.FFmpeg" Version="8.0.8" />
         <PackageReference Include="YamlDotNet" Version="16.3.0" />
 
-        <None Update="Sounds\welcome-sound.wav">
+        <None Update="Sounds\welcome.wav">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="Sounds\explanation.wav">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="Sounds\numbers-not-found.wav">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
         <None Update="Sounds\zero.wav">

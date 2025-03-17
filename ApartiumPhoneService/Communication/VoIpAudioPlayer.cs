@@ -90,7 +90,7 @@ public class VoIpAudioPlayer
             Environment.Exit(1);
         }
         
-        _logger.LogInformation($"\nPlaying file: {destination}");
+        _logger.LogInformation("Playing file: {0}", destination);
 
         SDL_FlushEvents(SDL_EventType.SDL_AUDIODEVICEADDED, SDL_EventType.SDL_AUDIODEVICEREMOVED);
 

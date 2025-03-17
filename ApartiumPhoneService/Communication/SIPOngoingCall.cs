@@ -4,7 +4,7 @@ namespace ApartiumPhoneService;
 
 public class SIPOngoingCall(SIPUserAgent userAgent, SIPServerUserAgent serverUserAgent, VoIpAudioPlayer voIpAudioPlayer)
 {
-    public void Hangup()
+    public virtual void Hangup()
     {
         userAgent.Hangup();
         serverUserAgent.Hangup(true);

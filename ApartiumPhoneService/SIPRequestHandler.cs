@@ -1,10 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
-using Serilog;
-using Serilog.Extensions.Logging;
 using SIPSorcery.Media;
 using SIPSorcery.SIP;
-using SIPSorcery.SIP.App;
 using SIPSorceryMedia.Abstractions;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
@@ -20,17 +17,14 @@ namespace ApartiumPhoneService;
 public class SIPRequestHandler
 {
     private readonly ApartiumPhoneServer _server;
-    
-    private readonly ConcurrentDictionary<char, VoIpSound> _keySounds = new();
-
-    private readonly List<char> _keysPressed = [];
-
-    private readonly VoIpAudioPlayer _audioPlayer;
-    
     private readonly SIPUserAgentFactory _userAgentFactory;
     
+    private readonly VoIpAudioPlayer _audioPlayer;
     private readonly ILogger _logger;
-    
+
+    private readonly ConcurrentDictionary<char, VoIpSound> _keySounds;
+    private readonly List<char> _keysPressed;
+
     public SIPRequestHandler(ApartiumPhoneServer server, SIPUserAgentFactory userAgentFactory, VoIpAudioPlayer audioPlayer, ILogger logger)
     {
         _server = server;
@@ -38,6 +32,9 @@ public class SIPRequestHandler
         _audioPlayer = audioPlayer;
         _logger = logger;
 
+        _keysPressed = [];
+        _keySounds = new ConcurrentDictionary<char, VoIpSound>();
+        
         AddKeySounds();
     }
 
@@ -100,11 +97,7 @@ public class SIPRequestHandler
         var voIpMediaSession = new VoIPMediaSession(new MediaEndPoints { AudioSource = audioSource });
 
         sipUserAgent.OnDtmfTone += (key, duration) => OnDtmfTone(sipUserAgent, key, duration);
-        sipUserAgent.OnRtpEvent += (evt, hdr) =>
-            _logger.LogDebug(
-                $"rtp event {evt.EventID}, duration {evt.Duration}, end of event {evt.EndOfEvent}, timestamp {hdr.Timestamp}, marker {hdr.MarkerBit}.");
-
-        //ua.OnTransactionTraceMessage += (tx, msg) => Log.LogDebug($"uas tx {tx.TransactionId}: {msg}");
+        
         sipUserAgent.ServerCallRingTimeout += serverUserAgent =>
         {
             var transactionState = serverUserAgent.ClientTransaction.TransactionState;
@@ -130,6 +123,7 @@ public class SIPRequestHandler
         }
 
         await Task.Run(() => _audioPlayer.Play(VoIpSound.WelcomeSound));
+        await Task.Run(() => _audioPlayer.Play(VoIpSound.ExplanationSound));
         _manualReset.Set(); // signaling the thread to continue.
     }
 
@@ -157,11 +151,11 @@ public class SIPRequestHandler
     /// <param name="userAgent">The user agent of the client</param>
     /// <param name="key">The key that was pressed</param>
     /// <param name="duration">The duration of the press</param>
-    private void OnDtmfTone(SIPUserAgent userAgent, byte key, int duration)
+    private void OnDtmfTone(SIPUserAgentWrapper userAgent, byte key, int duration)
     {
         _manualReset.WaitOne(); // waiting until the welcome sound has finished
         
-        var callId = userAgent.Dialogue.CallId;
+        var callId = userAgent.Dialogue().CallId;
         _logger.LogInformation($"Call {callId} received DTMF tone {key}, duration {duration}ms.");
 
         var keyPressed = key switch
@@ -172,16 +166,23 @@ public class SIPRequestHandler
         };
 
         _logger.LogInformation("User pressed {0}!", keyPressed);
-        
-        if (keyPressed != '#')
+
+        switch (keyPressed)
         {
-            AddKeyPressed(keyPressed);
-            return;
-        }
-        
-        lock (_threadLock)
-        {
-            PlaySelectedNumbers();
+            case '*':
+                _audioPlayer.Play(VoIpSound.ExplanationSound);
+                break;
+            
+            case '#':
+                lock (_threadLock)
+                {
+                    PlaySelectedNumbers();
+                    break;
+                }
+                
+            default:
+                AddKeyPressed(keyPressed);
+                break;
         }
     }
 
@@ -190,6 +191,12 @@ public class SIPRequestHandler
     /// </summary>
     private void PlaySelectedNumbers()
     {
+        if (_keysPressed.Count == 0)
+        {
+            _audioPlayer.Play(VoIpSound.NumbersNotFound);
+            return;
+        }
+        
         foreach (var sound in _keysPressed.Select(GetVoIpSound))
         {
             _audioPlayer.Play(sound);
@@ -228,6 +235,11 @@ public class SIPRequestHandler
         }
     }
 
+    /// <summary>
+    /// Gets the sound by the key pressed
+    /// </summary>
+    /// <param name="keyPressed">The key pressed</param>
+    /// <returns>The sound of the key that was pressed</returns>
     private VoIpSound GetVoIpSound(char keyPressed)
     {
         return _keySounds[keyPressed];

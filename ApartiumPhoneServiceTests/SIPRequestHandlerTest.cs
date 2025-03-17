@@ -1,17 +1,16 @@
-using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Sockets;
+using System.Reflection;
 using ApartiumPhoneService;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NSubstitute;
-using NSubstitute.ReturnsExtensions;
 using Serilog;
 using Serilog.Extensions.Logging;
 using SIPSorcery.Media;
 using SIPSorcery.SIP;
 using SIPSorcery.SIP.App;
-using Xunit.Sdk;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace ApartiumPhoneServiceTests;
@@ -32,9 +31,6 @@ public class SIPRequestHandlerTest
     private Mock<SIPUserAgentWrapper> _userAgentMock;
     private Mock<UASInviteTransactionWrapper> _uasInvTransactionMock;
     private Mock<SIPServerUserAgentWrapper> _serverUaMock = new();
-    
-    private readonly Mock<ConcurrentDictionary<char, VoIpSound>> _keySoundsMock = new();
-    private readonly Mock<ConcurrentBag<char>> _keysPressed = new();
     
     private readonly Mock<VoIpAudioPlayer> _voIpAudioPlayerMock = new();
     
@@ -129,9 +125,13 @@ public class SIPRequestHandlerTest
     }
 
     [Fact]
-    public async Task TestHandle_Incoming_Call_On_Hangup_When_Call_Null()
+    public void TestHandle_Incoming_Call_On_Hangup_When_Call_Null()
     {
         // Arrange
+        _userAgentMock.Setup(x => x.Dialogue())
+            .Returns(new SIPDialogue())
+            .Verifiable();
+        
         _userAgentMock.Object.Dialogue().CallId = "123";
         
         _serverMock.Setup(x => x.TryRemoveCall(It.Is<string>(callId => callId != "123")))
@@ -153,19 +153,289 @@ public class SIPRequestHandlerTest
             _voIpAudioPlayerMock.Object,
             _loggerMock.Object
         );
-        
-        await _sipRequestHandler.Handle(_sipRequest,
-            _sipEndPointMock.Object,
-            _remoteEndPointMock.Object
-        );
+
+        TriggerOnHangup(_sipRequestHandler);
         
         // Assert
         var nextLog = _loggerMock.Object.GetNextLog();
-        Assert.Contains("Incoming call request: ", nextLog);
+        Assert.Contains("Stopped audio", nextLog);
         AssertNoMoreLogs();
 
         Assert.NotNull(_userAgentMock.Object.Dialogue().CallId);
         Assert.Null(_serverMock.Object.TryRemoveCall("134"));
+    }
+
+    [Fact]
+    public void TestHandle_Incoming_Call_On_Hangup()
+    {
+        // Arrange
+        _userAgentMock.Setup(x => x.Dialogue())
+            .Returns(new SIPDialogue())
+            .Verifiable();
+        
+        _userAgentMock.Object.Dialogue().CallId = "123";
+        
+        _serverMock.Setup(x => x.TryRemoveCall(It.Is<string>(callId => callId != "123")))
+            .Returns((SIPOngoingCall)null)
+            .Verifiable();
+        
+        _serverMock.Setup(x => x.TryAddCall(It.IsAny<string>(), It.IsAny<SIPOngoingCall>()))
+            .Returns(true)
+            .Verifiable();
+        
+        _userAgentMock.Setup(x => x.IsCallActive)
+            .Returns(true)
+            .Verifiable();
+        
+        var sipOngoingCallMock = new Mock<SIPOngoingCall>(_userAgentMock.Object, _serverUaMock.Object,  _voIpAudioPlayerMock.Object);
+        sipOngoingCallMock.Setup(x => x.Hangup())
+            .CallBase()
+            .Verifiable();
+
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(
+            _serverMock.Object,
+            _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
+            _loggerMock.Object
+        );
+        
+        TriggerOnHangup(_sipRequestHandler);
+
+        // Assert
+        Assert.NotNull(_userAgentMock.Object.Dialogue());
+        Assert.NotNull(_userAgentMock.Object.Dialogue().CallId);
+        Assert.NotNull(sipOngoingCallMock.Object);
+        Assert.NotNull(_voIpAudioPlayerMock.Object);
+
+        var nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Stopped audio", nextLog);
+        AssertNoMoreLogs();
+    }
+
+    [Fact]
+    public async Task TestHandle_Incoming_Call_On_Dtmf()
+    {
+        // Arrange
+        _serverMock.Setup(x => x.TryAddCall(It.IsAny<string>(), It.IsAny<SIPOngoingCall>()))
+            .Returns(true)
+            .Verifiable();
+        
+        _userAgentMock.Setup(x => x.Dialogue())
+            .Returns(new SIPDialogue())
+            .Verifiable();
+        
+        _userAgentMock.Object.Dialogue().CallId = "123";
+        
+        var manualResetEvent = Substitute.For<EventWaitHandle>(false, EventResetMode.ManualReset);
+        manualResetEvent.When(x => x.WaitOne()).DoNotCallBase();
+     
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(
+            _serverMock.Object,
+            _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
+            _loggerMock.Object
+        );
+
+        await _sipRequestHandler.Handle(_sipRequest, _sipEndPointMock.Object, _remoteEndPointMock.Object);
+        TriggerOnDtmf(_sipRequestHandler, _userAgentMock.Object, 0, 30);
+
+        // Assert
+        var nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Incoming call request: ", nextLog);
+
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Call 123 received DTMF tone 0, duration 30ms.", nextLog);
+
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("User pressed 0!", nextLog);
+        AssertNoMoreLogs();
+    }
+
+    [Fact]
+    public async Task TestHandle_Incoming_Call_On_Dtmf_When_Hash_Pressed()
+    {
+        // Arrange
+        _serverMock.Setup(x => x.TryAddCall(It.IsAny<string>(), It.IsAny<SIPOngoingCall>()))
+            .Returns(true)
+            .Verifiable();
+        
+        _userAgentMock.Setup(x => x.Dialogue())
+            .Returns(new SIPDialogue())
+            .Verifiable();
+        
+        _userAgentMock.Object.Dialogue().CallId = "123";
+        
+        var manualResetEvent = Substitute.For<EventWaitHandle>(false, EventResetMode.ManualReset);
+        manualResetEvent.When(x => x.WaitOne()).DoNotCallBase();
+     
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(
+            _serverMock.Object,
+            _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
+            _loggerMock.Object
+        );
+
+        await _sipRequestHandler.Handle(_sipRequest, _sipEndPointMock.Object, _remoteEndPointMock.Object);
+        TriggerOnDtmf(_sipRequestHandler, _userAgentMock.Object, 0, 30);
+        TriggerOnDtmf(_sipRequestHandler, _userAgentMock.Object, 11, 30);
+        
+        // Assert
+        var nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Incoming call request: ", nextLog);
+
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("Call 123 received DTMF tone 0, duration 30ms.", nextLog);
+        
+        nextLog =  _loggerMock.Object.GetNextLog();
+        Assert.Equal("User pressed 0!", nextLog);
+        
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("Call 123 received DTMF tone 11, duration 30ms.", nextLog);
+        
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("User pressed #!", nextLog);
+
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("Cleared the keys pressed", nextLog);
+        AssertNoMoreLogs();
+    }
+    
+    [Fact]
+    public async Task TestHandle_Incoming_Call_On_Dtmf_When_Only_Hash_Pressed()
+    {
+        // Arrange
+        _serverMock.Setup(x => x.TryAddCall(It.IsAny<string>(), It.IsAny<SIPOngoingCall>()))
+            .Returns(true)
+            .Verifiable();
+        
+        _userAgentMock.Setup(x => x.Dialogue())
+            .Returns(new SIPDialogue())
+            .Verifiable();
+        
+        _userAgentMock.Object.Dialogue().CallId = "123";
+        
+        var manualResetEvent = Substitute.For<EventWaitHandle>(false, EventResetMode.ManualReset);
+        manualResetEvent.When(x => x.WaitOne()).DoNotCallBase();
+     
+        var playedNumbersNotFound = false;
+
+        _voIpAudioPlayerMock.Setup(x => x.Play(VoIpSound.NumbersNotFound))
+            .Callback(() =>
+            {
+                playedNumbersNotFound = true;
+            })
+            .Verifiable();
+        
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(
+            _serverMock.Object,
+            _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
+            _loggerMock.Object
+        );
+
+        await _sipRequestHandler.Handle(_sipRequest, _sipEndPointMock.Object, _remoteEndPointMock.Object);
+        TriggerOnDtmf(_sipRequestHandler, _userAgentMock.Object, 11, 30);
+        
+        // Assert
+        var nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Incoming call request: ", nextLog);
+
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("Call 123 received DTMF tone 11, duration 30ms.", nextLog);
+        
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("User pressed #!", nextLog);
+        AssertNoMoreLogs();
+        Assert.True(playedNumbersNotFound);
+    }
+
+    [Fact]
+    public async Task TestHandle_Incoming_Call_On_Dtmf_When_Asterisk_Pressed()
+    {
+        // Arrange
+        _serverMock.Setup(x => x.TryAddCall(It.IsAny<string>(), It.IsAny<SIPOngoingCall>()))
+            .Returns(true)
+            .Verifiable();
+        
+        _userAgentMock.Setup(x => x.Dialogue())
+            .Returns(new SIPDialogue())
+            .Verifiable();
+        
+        _userAgentMock.Object.Dialogue().CallId = "123";
+        
+        var manualResetEvent = Substitute.For<EventWaitHandle>(false, EventResetMode.ManualReset);
+        manualResetEvent.When(x => x.WaitOne()).DoNotCallBase();
+     
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(
+            _serverMock.Object,
+            _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
+            _loggerMock.Object
+        );
+
+        await _sipRequestHandler.Handle(_sipRequest, _sipEndPointMock.Object, _remoteEndPointMock.Object);
+        TriggerOnDtmf(_sipRequestHandler, _userAgentMock.Object, 0, 30);
+        TriggerOnDtmf(_sipRequestHandler, _userAgentMock.Object, 10, 30);
+        
+        var nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Contains("Incoming call request: ", nextLog);
+        
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("Call 123 received DTMF tone 0, duration 30ms.", nextLog);
+        
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("User pressed 0!", nextLog);
+        
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("Call 123 received DTMF tone 10, duration 30ms.", nextLog);
+        
+        nextLog = _loggerMock.Object.GetNextLog();
+        Assert.Equal("User pressed *!", nextLog);
+        AssertNoMoreLogs();
+    }
+
+    [Fact]
+    public async Task Test_Handle_When_Request_Method_Is_Bye()
+    {
+        // Arrange
+        _sipRequest.Method = SIPMethodsEnum.BYE;
+        var sipTransportMock = new Mock<SIPTransportWrapper>();
+        
+        sipTransportMock.Setup(x => x.SendResponseAsync(It.IsAny<SIPResponse>(), false)).Verifiable();
+        
+        // Act
+        _sipRequestHandler = new SIPRequestHandler(
+            _serverMock.Object,
+            _sipUaFactoryMock.Object,
+            _voIpAudioPlayerMock.Object,
+            _loggerMock.Object
+        );
+        
+        await _sipRequestHandler.Handle(_sipRequest, _sipEndPointMock.Object, _remoteEndPointMock.Object);
+
+        // Assert
+        var sipResponse = SIPResponse.GetResponse(_sipRequest, SIPResponseStatusCodesEnum.CallLegTransactionDoesNotExist, null);
+        Assert.NotNull(sipResponse);
+        Assert.Equal(SIPMethodsEnum.BYE, _sipRequest.Method);
+        AssertNoMoreLogs();
+    }
+
+    private void TriggerOnHangup(SIPRequestHandler sipRequestHandler)
+    {
+        var methodInfo = sipRequestHandler.GetType().GetMethod("OnHangup", BindingFlags.NonPublic | BindingFlags.Instance);
+        methodInfo!.Invoke(sipRequestHandler, [_userAgentMock.Object.Dialogue()]);
+    }
+
+    private void TriggerOnDtmf(SIPRequestHandler handler, SIPUserAgentWrapper userAgent, byte key, int duration)
+    {
+        var methodInfo = handler.GetType().GetMethod("OnDtmfTone", BindingFlags.NonPublic | BindingFlags.Instance);
+        methodInfo!.Invoke(handler, [userAgent, key, duration]);
+        
     }
 
     private void AssertNoMoreLogs()
@@ -317,5 +587,18 @@ public class UASInviteTransactionWrapper(
     public virtual void CancelCall(SIPRequest? sipRequest = null)
     {
         base.CancelCall(sipRequest);
+    }
+}
+
+public class SIPTransportWrapper : SIPTransport
+{
+    public virtual Task<SocketError> SendResponseAsync(SIPResponse sipResponse, bool waitForDns = false)
+    {
+        return base.SendResponseAsync(sipResponse, waitForDns);
+    }
+
+    public virtual void AddSIPChannel(SIPChannel sipChannel)
+    {
+        base.AddSIPChannel(sipChannel);
     }
 }
